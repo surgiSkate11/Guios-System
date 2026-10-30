@@ -1,4 +1,5 @@
 import { INestApplication } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { App } from 'supertest/types';
@@ -190,6 +191,17 @@ describe('Auth (e2e, test database)', () => {
       await http()
         .get('/api/auth/me')
         .set('Authorization', 'Bearer no-es-un-token')
+        .expect(401);
+    });
+
+    it('answers 401 for a token signed with an algorithm other than HS256', async () => {
+      const usuario = await crearUsuario('ana@org.com', 'clave-segura');
+      const token = await app
+        .get(JwtService)
+        .signAsync({ sub: usuario.id }, { algorithm: 'HS512' });
+      await http()
+        .get('/api/auth/me')
+        .set('Authorization', `Bearer ${token}`)
         .expect(401);
     });
 

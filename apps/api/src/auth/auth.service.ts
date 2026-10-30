@@ -22,7 +22,8 @@ const CORREO_REGISTRADO = 'El correo ya está registrado';
 @Injectable()
 export class AuthService {
   // Hash checked when the email does not exist, so both failures take similar time.
-  private dummyHash?: Promise<string>;
+  // Computed at startup so even the first unknown-email login is not faster.
+  private readonly dummyHash = hashPassword('dummy-password-for-timing');
 
   constructor(
     private readonly prisma: PrismaService,
@@ -32,7 +33,6 @@ export class AuthService {
   async login({ email, password }: LoginDto): Promise<SesionRespuesta> {
     const usuario = await this.prisma.usuario.findUnique({ where: { email } });
     if (!usuario) {
-      this.dummyHash ??= hashPassword('dummy-password-for-timing');
       await verifyPassword(await this.dummyHash, password);
       throw new UnauthorizedException(CREDENCIALES_INVALIDAS);
     }

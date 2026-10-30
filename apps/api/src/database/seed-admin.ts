@@ -2,6 +2,8 @@ import { hashPassword } from '../auth/password';
 import type { PrismaClient } from '../generated/prisma/client';
 
 const ADMIN_NAME = 'Administrador';
+/** Same minimum as self sign-up (RegistroDto). */
+const MIN_PASSWORD_LENGTH = 8;
 
 function requireVariable(
   env: Record<string, string | undefined>,
@@ -27,9 +29,22 @@ export async function seedAdmin(
 ): Promise<void> {
   const email = requireVariable(env, 'ADMIN_EMAIL').toLowerCase();
   const password = requireVariable(env, 'ADMIN_PASSWORD');
+  if (password.length < MIN_PASSWORD_LENGTH) {
+    throw new Error(
+      `ADMIN_PASSWORD must be at least ${MIN_PASSWORD_LENGTH} characters long`,
+    );
+  }
 
   const existing = await prisma.usuario.findUnique({ where: { email } });
-  if (existing) return;
+  if (existing) {
+    // An account self-registered with this email must not silently block the admin.
+    if (existing.rol !== 'administrador') {
+      throw new Error(
+        'ADMIN_EMAIL already belongs to a non-administrator account; use another email',
+      );
+    }
+    return;
+  }
 
   await prisma.usuario.create({
     data: {

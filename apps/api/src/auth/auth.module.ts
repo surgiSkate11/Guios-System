@@ -22,7 +22,11 @@ const MIN_SECRET_LENGTH = 32;
             `JWT_SECRET must be at least ${MIN_SECRET_LENGTH} characters long`,
           );
         }
-        return { secret, signOptions: { expiresIn: TOKEN_TTL } };
+        return {
+          secret,
+          signOptions: { expiresIn: TOKEN_TTL, algorithm: 'HS256' },
+          verifyOptions: { algorithms: ['HS256'] },
+        };
       },
     }),
   ],

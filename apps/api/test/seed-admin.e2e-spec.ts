@@ -61,4 +61,30 @@ describe('seedAdmin (e2e, test database)', () => {
       expect(await prisma.usuario.count()).toBe(0);
     },
   );
+
+  it('rejects an ADMIN_PASSWORD shorter than 8 characters and creates no user', async () => {
+    await expect(
+      seedAdmin(prisma, { ...env, ADMIN_PASSWORD: 'short' }),
+    ).rejects.toThrow('ADMIN_PASSWORD');
+    expect(await prisma.usuario.count()).toBe(0);
+  });
+
+  it('fails when ADMIN_EMAIL already belongs to a non-admin account', async () => {
+    await prisma.usuario.create({
+      data: {
+        nombre: 'Intruso',
+        email: 'admin@guios.local',
+        passwordHash: 'x',
+        rol: 'invitado',
+      },
+    });
+    await expect(seedAdmin(prisma, env)).rejects.toThrow('ADMIN_EMAIL');
+    const usuario = await prisma.usuario.findUniqueOrThrow({
+      where: { email: 'admin@guios.local' },
+    });
+    expect(usuario.rol).toBe('invitado');
+    expect(
+      await prisma.usuario.count({ where: { rol: 'administrador' } }),
+    ).toBe(0);
+  });
 });
