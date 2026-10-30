@@ -1,6 +1,6 @@
 @import 'tailwindcss';
 
-/* Design tokens taken from the GUIOS PRO prototypes (doc/img prototitpo). */
+/* Design tokens taken from the GUIOS PRO prototypes (doc/img prototipo). */
 @theme {
   --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
 

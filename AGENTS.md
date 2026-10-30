@@ -2,7 +2,7 @@
 
 Web app that evaluates candidate software against an organization's requirement
 (GUIOS guide, Rea Sánchez 2022). Spec: `doc/GUIOS PRO especificación de requerimientos.pdf`.
-Screens: `doc/img prototitpo/`. Feature tracking: `odd/tasks/`.
+Screens: `doc/img prototipo/`. Feature tracking: `odd/tasks/`.
 
 ## Layout
 

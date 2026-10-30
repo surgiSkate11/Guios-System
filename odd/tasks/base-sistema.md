@@ -2,7 +2,7 @@
 
 Base ejecutable del sistema (API NestJS + web React + PostgreSQL) sobre la que se
 desarrolla cada módulo en profundidad. Spec: `doc/GUIOS PRO especificación de requerimientos.pdf`
-(sección 10); diseño: `doc/img prototitpo/`.
+(sección 10); diseño: `doc/img prototipo/`.
 
 ## Specs
 

@@ -11,7 +11,7 @@ organization's requirement, with one or more judges. Full specification:
 | `packages/calculo` | `@guios/calculo`: calculation rules RN-01 to RN-14, shared by API and web |
 | `apps/api` | `@guios/api`: NestJS REST API, every route under `/api` |
 | `apps/web` | `@guios/web`: React + Vite + Tailwind frontend |
-| `doc/` | Requirements specification and prototype screens (`doc/img prototitpo/`) |
+| `doc/` | Requirements specification and prototype screens (`doc/img prototipo/`) |
 
 ## Requirements
 
