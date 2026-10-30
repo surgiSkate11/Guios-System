@@ -6,7 +6,7 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: ['eslint.config.mjs'],
+    ignores: ['eslint.config.mjs', 'src/generated/**', 'dist/**'],
   },
   eslint.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
@@ -30,6 +30,14 @@ export default tseslint.config(
       '@typescript-eslint/no-floating-promises': 'warn',
       '@typescript-eslint/no-unsafe-argument': 'warn',
       "prettier/prettier": ["error", { endOfLine: "auto" }],
+    },
+  },
+  {
+    // supertest types response bodies as any; e2e assertions read them directly.
+    files: ['test/**/*.ts'],
+    rules: {
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
     },
   },
 );

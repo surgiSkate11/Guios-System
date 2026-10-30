@@ -1,0 +1,537 @@
+// GUIOS PRO data model (spec section 9). Tables use the spec's snake_case names.
+// Integrity rules that Prisma cannot express are CHECK constraints in the migrations.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum Sector {
+  publico
+  privado
+  independiente
+}
+
+enum Rol {
+  invitado
+  coordinador
+  administrador
+}
+
+enum Alcance {
+  interno
+  externo
+}
+
+enum OrigenFactor {
+  tesis
+  lit_2020_2025
+}
+
+/// Where the current IS of a factor comes from (spec section 9, changes).
+enum OrigenIs {
+  tesis
+  manual
+  ia_aprobada
+}
+
+enum TipoPublicacion {
+  articulo_revisado
+  norma_tecnica
+  otro
+}
+
+enum FuenteEvidencia {
+  ia
+  manual
+}
+
+enum EstadoProyecto {
+  borrador
+  en_curso
+  cerrado
+}
+
+enum MetodoConsolidacion {
+  mediana
+  promedio
+}
+
+enum EstadoJurado {
+  invitado
+  activo
+  finalizado
+}
+
+enum Foda {
+  fortaleza
+  oportunidad
+  debilidad
+  amenaza
+}
+
+enum NivelAdopcion {
+  A
+  B
+  C
+}
+
+enum EstadoAnalisisIa {
+  pendiente
+  completado
+  fallido
+}
+
+enum EstadoEstimacionIs {
+  en_curso
+  propuesta
+  aprobada
+  rechazada
+}
+
+enum ModoEstimacionIs {
+  manual
+  ia
+}
+
+// ---------------------------------------------------------------------------
+// Users
+// ---------------------------------------------------------------------------
+
+model Organizacion {
+  id            Int                  @id @default(autoincrement())
+  nombre        String
+  sector        Sector
+  activo        Boolean              @default(true)
+  creadoEn      DateTime             @default(now()) @map("creado_en")
+  actualizadoEn DateTime             @updatedAt @map("actualizado_en")
+  usuarios      Usuario[]
+  proyectos     ProyectoEvaluacion[]
+
+  @@map("organizacion")
+}
+
+model Usuario {
+  id                    Int                     @id @default(autoincrement())
+  nombre                String
+  /// Always stored lowercased.
+  email                 String                  @unique
+  passwordHash          String                  @map("password_hash")
+  rol                   Rol                     @default(invitado)
+  activo                Boolean                 @default(true)
+  idOrganizacion        Int?                    @map("id_organizacion")
+  organizacion          Organizacion?           @relation(fields: [idOrganizacion], references: [id])
+  creadoEn              DateTime                @default(now()) @map("creado_en")
+  actualizadoEn         DateTime                @updatedAt @map("actualizado_en")
+  proyectosCoordinados  ProyectoEvaluacion[]
+  participaciones       JuradoProyecto[]
+  importancias          JuradoImportancia[]
+  calificaciones        EvaluacionSubfactor[]
+  resultadosFactor      ResultadoJuradoFactor[]
+  versionesCreadas      CatalogoVersion[]
+  estimacionesAprobadas EstimacionIs[]
+  tokensRecuperacion    TokenRecuperacion[]
+
+  @@index([idOrganizacion])
+  @@map("usuario")
+}
+
+/// Password recovery link (RF-25). Only the token hash is stored.
+model TokenRecuperacion {
+  id        Int      @id @default(autoincrement())
+  idUsuario Int      @map("id_usuario")
+  usuario   Usuario  @relation(fields: [idUsuario], references: [id], onDelete: Cascade)
+  tokenHash String   @unique @map("token_hash")
+  venceEn   DateTime @map("vence_en")
+  usado     Boolean  @default(false)
+  creadoEn  DateTime @default(now()) @map("creado_en")
+
+  @@index([idUsuario])
+  @@map("token_recuperacion")
+}
+
+// ---------------------------------------------------------------------------
+// Catalog
+// ---------------------------------------------------------------------------
+
+/// Real catalog versioning (RF-17): projects keep the version they started with.
+model CatalogoVersion {
+  id          Int                  @id @default(autoincrement())
+  numero      Int                  @unique
+  fecha       DateTime             @default(now())
+  creadoPorId Int?                 @map("creado_por")
+  creadoPor   Usuario?             @relation(fields: [creadoPorId], references: [id])
+  motivo      String
+  /// Current IL cut points (RN-02).
+  rq1         Float
+  rq2         Float
+  rq3         Float
+  proyectos   ProyectoEvaluacion[]
+  anclas      MedicionAncla[]
+
+  @@map("catalogo_version")
+}
+
+model Dimension {
+  id         Int                 @id @default(autoincrement())
+  nombre     String
+  /// Null for the global dimensions (Tecnológica, Organizacional, Económica).
+  idProyecto Int?                @map("id_proyecto")
+  proyecto   ProyectoEvaluacion? @relation("DimensionPropia", fields: [idProyecto], references: [id])
+  factores   Factor[]
+  proyectos  ProyectoDimension[]
+  jurados    JuradoDimension[]
+
+  @@index([idProyecto])
+  @@map("dimension")
+}
+
+model Factor {
+  id               Int                     @id @default(autoincrement())
+  idDimension      Int                     @map("id_dimension")
+  dimension        Dimension               @relation(fields: [idDimension], references: [id])
+  nombre           String
+  /// IS (1 to 4).
+  sugeridaDefault  Int                     @map("sugerida_default")
+  alcanceDefault   Alcance                 @map("alcance_default")
+  origen           OrigenFactor
+  isOrigen         OrigenIs                @default(tesis) @map("is_origen")
+  validadoExpertos Boolean                 @default(false) @map("validado_expertos")
+  activo           Boolean                 @default(true)
+  subfactores      Subfactor[]
+  evidencias       EvidenciaLiteratura[]
+  proyectos        ProyectoFactor[]
+  estimaciones     EstimacionIs[]
+  anclas           MedicionAncla[]
+  resultados       ResultadoJuradoFactor[]
+
+  @@index([idDimension])
+  @@map("factor")
+}
+
+model Subfactor {
+  id             Int                   @id @default(autoincrement())
+  idFactor       Int                   @map("id_factor")
+  factor         Factor                @relation(fields: [idFactor], references: [id])
+  texto          String                @db.VarChar(300)
+  activo         Boolean               @default(true)
+  evidencias     EvidenciaLiteratura[]
+  calificaciones EvaluacionSubfactor[]
+
+  @@index([idFactor])
+  @@map("subfactor")
+}
+
+/// Peer-reviewed evidence 2020-2025 supporting a subfactor (RN-14). One row per
+/// supported subfactor: an article backing several subfactors has several rows.
+model EvidenciaLiteratura {
+  id              Int             @id @default(autoincrement())
+  idFactor        Int             @map("id_factor")
+  factor          Factor          @relation(fields: [idFactor], references: [id])
+  idSubfactor     Int?            @map("id_subfactor")
+  subfactor       Subfactor?      @relation(fields: [idSubfactor], references: [id])
+  referencia      String
+  anio            Int
+  doi             String?
+  tipoPublicacion TipoPublicacion @map("tipo_publicacion")
+  resumen         String?
+  citaTextual     String?         @map("cita_textual")
+  aceptada        Boolean         @default(false)
+  fuente          FuenteEvidencia
+
+  @@index([idFactor])
+  @@index([idSubfactor])
+  @@map("evidencia_literatura")
+}
+
+/// Reference factor (anchor) measured with the current method, per catalog version.
+model MedicionAncla {
+  id                Int             @id @default(autoincrement())
+  idFactor          Int             @map("id_factor")
+  factor            Factor          @relation(fields: [idFactor], references: [id])
+  idCatalogoVersion Int             @map("id_catalogo_version")
+  catalogoVersion   CatalogoVersion @relation(fields: [idCatalogoVersion], references: [id])
+  terminosBusqueda  Json            @map("terminos_busqueda")
+  periodoDesde      Int             @map("periodo_desde")
+  periodoHasta      Int             @map("periodo_hasta")
+  citas             Int
+  ns                Int
+  r                 Float
+  fecha             DateTime        @default(now())
+
+  @@unique([idFactor, idCatalogoVersion])
+  @@map("medicion_ancla")
+}
+
+/// Traceability of each IS calculation of a factor (RF-22 to RF-24, RNF-07).
+model EstimacionIs {
+  id                    Int                @id @default(autoincrement())
+  idFactor              Int                @map("id_factor")
+  factor                Factor             @relation(fields: [idFactor], references: [id])
+  modo                  ModoEstimacionIs
+  estado                EstadoEstimacionIs @default(en_curso)
+  terminosBusqueda      Json?              @map("terminos_busqueda")
+  candidatosJson        Json?              @map("candidatos_json")
+  clasificacionJson     Json?              @map("clasificacion_json")
+  descartesJson         Json?              @map("descartes_json")
+  citasPorSubfactorJson Json?              @map("citas_por_subfactor_json")
+  modelo                String?
+  tc                    Int?
+  ns                    Int?
+  r                     Float?
+  il                    Int?
+  isPropuesta           Int?               @map("is_propuesta")
+  isAprobada            Int?               @map("is_aprobada")
+  /// Required when the approved IS differs from the proposed one.
+  justificacion         String?
+  aprobadoPorId         Int?               @map("aprobado_por")
+  aprobadoPor           Usuario?           @relation(fields: [aprobadoPorId], references: [id])
+  creadoEn              DateTime           @default(now()) @map("creado_en")
+  actualizadoEn         DateTime           @updatedAt @map("actualizado_en")
+
+  @@index([idFactor])
+  @@map("estimacion_is")
+}
+
+// ---------------------------------------------------------------------------
+// Projects
+// ---------------------------------------------------------------------------
+
+model ProyectoEvaluacion {
+  id                  Int                 @id @default(autoincrement())
+  idOrganizacion      Int                 @map("id_organizacion")
+  organizacion        Organizacion        @relation(fields: [idOrganizacion], references: [id])
+  idCoordinador       Int                 @map("id_coordinador")
+  coordinador         Usuario             @relation(fields: [idCoordinador], references: [id])
+  nombre              String
+  fechaInicio         DateTime            @map("fecha_inicio") @db.Date
+  fechaFin            DateTime?           @map("fecha_fin") @db.Date
+  estado              EstadoProyecto      @default(borrador)
+  metodoConsolidacion MetodoConsolidacion @default(mediana) @map("metodo_consolidacion")
+  idCatalogoVersion   Int                 @map("id_catalogo_version")
+  catalogoVersion     CatalogoVersion     @relation(fields: [idCatalogoVersion], references: [id])
+  creadoEn            DateTime            @default(now()) @map("creado_en")
+  actualizadoEn       DateTime            @updatedAt @map("actualizado_en")
+  dimensionesPropias  Dimension[]         @relation("DimensionPropia")
+  dimensiones         ProyectoDimension[]
+  softwares           SoftwareCandidato[]
+  jurados             JuradoProyecto[]
+  factores            ProyectoFactor[]
+  informes            InformeEvaluacion[]
+  analisisIa          AnalisisIa[]
+  parametros          ParametroAnalisis?
+
+  @@index([idOrganizacion])
+  @@index([idCoordinador])
+  @@map("proyecto_evaluacion")
+}
+
+model ProyectoDimension {
+  idProyecto  Int                @map("id_proyecto")
+  proyecto    ProyectoEvaluacion @relation(fields: [idProyecto], references: [id], onDelete: Cascade)
+  idDimension Int                @map("id_dimension")
+  dimension   Dimension          @relation(fields: [idDimension], references: [id])
+
+  @@id([idProyecto, idDimension])
+  @@map("proyecto_dimension")
+}
+
+model SoftwareCandidato {
+  id               Int                       @id @default(autoincrement())
+  idProyecto       Int                       @map("id_proyecto")
+  proyecto         ProyectoEvaluacion        @relation(fields: [idProyecto], references: [id], onDelete: Cascade)
+  nombre           String
+  version          String?
+  /// Free or commercial license name (the thesis only covered free software).
+  licencia         String?
+  calificaciones   EvaluacionSubfactor[]
+  resultadosJurado ResultadoJuradoFactor[]
+  resultadosFactor ResultadoFactorSoftware[]
+  resultado        ResultadoSoftware?
+
+  @@index([idProyecto])
+  @@map("software_candidato")
+}
+
+model JuradoProyecto {
+  id          Int                @id @default(autoincrement())
+  idProyecto  Int                @map("id_proyecto")
+  proyecto    ProyectoEvaluacion @relation(fields: [idProyecto], references: [id], onDelete: Cascade)
+  idUsuario   Int                @map("id_usuario")
+  usuario     Usuario            @relation(fields: [idUsuario], references: [id])
+  estado      EstadoJurado       @default(invitado)
+  dimensiones JuradoDimension[]
+
+  @@unique([idProyecto, idUsuario])
+  @@map("jurado_proyecto")
+}
+
+/// Dimensions a judge evaluates within a project.
+model JuradoDimension {
+  idJuradoProyecto Int            @map("id_jurado_proyecto")
+  juradoProyecto   JuradoProyecto @relation(fields: [idJuradoProyecto], references: [id], onDelete: Cascade)
+  idDimension      Int            @map("id_dimension")
+  dimension        Dimension      @relation(fields: [idDimension], references: [id])
+
+  @@id([idJuradoProyecto, idDimension])
+  @@map("jurado_dimension")
+}
+
+/// Factor within a project: consolidated importance, relevance and effective scope.
+model ProyectoFactor {
+  id                   Int                       @id @default(autoincrement())
+  idProyecto           Int                       @map("id_proyecto")
+  proyecto             ProyectoEvaluacion        @relation(fields: [idProyecto], references: [id], onDelete: Cascade)
+  idFactor             Int                       @map("id_factor")
+  factor               Factor                    @relation(fields: [idFactor], references: [id])
+  /// IS snapshot taken from the project's catalog version (team proposal).
+  impSugerida          Int                       @map("imp_sugerida")
+  esRelevante          Boolean?                  @map("es_relevante")
+  impDecisorConsol     Int?                      @map("imp_decisor_consol")
+  impRelativa          Int?                      @map("imp_relativa")
+  alcanceEfectivo      Alcance                   @map("alcance_efectivo")
+  justificacionAlcance String?                   @map("justificacion_alcance")
+  importancias         JuradoImportancia[]
+  resultadosSoftware   ResultadoFactorSoftware[]
+
+  @@unique([idProyecto, idFactor])
+  @@map("proyecto_factor")
+}
+
+// ---------------------------------------------------------------------------
+// Judges' answers (separate rows per judge so they never overwrite each other)
+// ---------------------------------------------------------------------------
+
+model JuradoImportancia {
+  id               Int            @id @default(autoincrement())
+  idProyectoFactor Int            @map("id_proyecto_factor")
+  proyectoFactor   ProyectoFactor @relation(fields: [idProyectoFactor], references: [id], onDelete: Cascade)
+  idUsuario        Int            @map("id_usuario")
+  usuario          Usuario        @relation(fields: [idUsuario], references: [id])
+  impDecisor       Int            @map("imp_decisor")
+  actualizadoEn    DateTime       @updatedAt @map("actualizado_en")
+
+  @@unique([idProyectoFactor, idUsuario])
+  @@map("jurado_importancia")
+}
+
+model EvaluacionSubfactor {
+  id            Int               @id @default(autoincrement())
+  idSoftware    Int               @map("id_software")
+  software      SoftwareCandidato @relation(fields: [idSoftware], references: [id], onDelete: Cascade)
+  idUsuario     Int               @map("id_usuario")
+  usuario       Usuario           @relation(fields: [idUsuario], references: [id])
+  idSubfactor   Int               @map("id_subfactor")
+  subfactor     Subfactor         @relation(fields: [idSubfactor], references: [id])
+  /// 1 to 4, or null when the judge answered "Desconozco".
+  valor         Int?
+  desconozco    Boolean           @default(false)
+  actualizadoEn DateTime          @updatedAt @map("actualizado_en")
+
+  @@unique([idSoftware, idUsuario, idSubfactor])
+  @@map("evaluacion_subfactor")
+}
+
+// ---------------------------------------------------------------------------
+// Results
+// ---------------------------------------------------------------------------
+
+/// Result snapshot of a project (immutable once the project is closed, RNF-09).
+model InformeEvaluacion {
+  id                 Int                @id @default(autoincrement())
+  idProyecto         Int                @map("id_proyecto")
+  proyecto           ProyectoEvaluacion @relation(fields: [idProyecto], references: [id], onDelete: Cascade)
+  version            Int
+  fotoCalificaciones Json               @map("foto_calificaciones")
+  creadoEn           DateTime           @default(now()) @map("creado_en")
+
+  @@unique([idProyecto, version])
+  @@map("informe_evaluacion")
+}
+
+model ResultadoJuradoFactor {
+  id         Int               @id @default(autoincrement())
+  idSoftware Int               @map("id_software")
+  software   SoftwareCandidato @relation(fields: [idSoftware], references: [id], onDelete: Cascade)
+  idUsuario  Int               @map("id_usuario")
+  usuario    Usuario           @relation(fields: [idUsuario], references: [id])
+  idFactor   Int               @map("id_factor")
+  factor     Factor            @relation(fields: [idFactor], references: [id])
+  /// Null when every answer of the judge was "Desconozco" (RN-07).
+  pmJurado   Float?            @map("pm_jurado")
+
+  @@unique([idSoftware, idUsuario, idFactor])
+  @@map("resultado_jurado_factor")
+}
+
+model ResultadoFactorSoftware {
+  id               Int               @id @default(autoincrement())
+  idSoftware       Int               @map("id_software")
+  software         SoftwareCandidato @relation(fields: [idSoftware], references: [id], onDelete: Cascade)
+  idProyectoFactor Int               @map("id_proyecto_factor")
+  proyectoFactor   ProyectoFactor    @relation(fields: [idProyectoFactor], references: [id], onDelete: Cascade)
+  pmConsolidada    Float?            @map("pm_consolidada")
+  foda             Foda?
+
+  @@unique([idSoftware, idProyectoFactor])
+  @@map("resultado_factor_software")
+}
+
+model ResultadoSoftware {
+  id            Int               @id @default(autoincrement())
+  idSoftware    Int               @unique @map("id_software")
+  software      SoftwareCandidato @relation(fields: [idSoftware], references: [id], onDelete: Cascade)
+  scoreFinal    Float             @map("score_final")
+  scoreMinimo   Float             @map("score_minimo")
+  scoreMaximo   Float             @map("score_maximo")
+  desviacion    Float
+  nivelAdopcion NivelAdopcion     @map("nivel_adopcion")
+  ranking       Int
+
+  @@map("resultado_software")
+}
+
+// ---------------------------------------------------------------------------
+// AI analysis and parameters
+// ---------------------------------------------------------------------------
+
+/// Every AI analysis keeps its input, output and model (RNF-07).
+model AnalisisIa {
+  id         Int                @id @default(autoincrement())
+  idProyecto Int                @map("id_proyecto")
+  proyecto   ProyectoEvaluacion @relation(fields: [idProyecto], references: [id], onDelete: Cascade)
+  entrada    Json
+  salida     String?
+  modelo     String
+  estado     EstadoAnalisisIa   @default(pendiente)
+  creadoEn   DateTime           @default(now()) @map("creado_en")
+
+  @@index([idProyecto])
+  @@map("analisis_ia")
+}
+
+/// Analysis thresholds (RN-09, RN-13). The row with a null project holds the global defaults.
+model ParametroAnalisis {
+  id                    Int                 @id @default(autoincrement())
+  idProyecto            Int?                @unique @map("id_proyecto")
+  proyecto              ProyectoEvaluacion? @relation(fields: [idProyecto], references: [id], onDelete: Cascade)
+  umbralFoda            Float               @default(3) @map("umbral_foda")
+  umbralDesacuerdo      Float               @default(10) @map("umbral_desacuerdo")
+  umbralEmpateTecnico   Float               @default(2) @map("umbral_empate_tecnico")
+  umbralMetricaAlta     Float               @default(80) @map("umbral_metrica_alta")
+  umbralFactorDiscutido Float               @default(2) @map("umbral_factor_discutido")
+  /// Percentage from 0 to 100.
+  umbralDatosInciertos  Float               @default(25) @map("umbral_datos_inciertos")
+  metodoConsolidacion   MetodoConsolidacion @default(mediana) @map("metodo_consolidacion")
+
+  @@map("parametro_analisis")
+}
