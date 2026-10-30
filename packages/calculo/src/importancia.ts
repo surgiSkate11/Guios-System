@@ -23,7 +23,8 @@ function esEnteroNoNegativo(valor: number): boolean {
   return Number.isInteger(valor) && valor >= 0;
 }
 
-function validarImportancia(valor: number, nombre: string): asserts valor is Importancia {
+/** Throws a RangeError unless the value is an integer importance from 1 to 4. */
+export function validarImportancia(valor: number, nombre: string): asserts valor is Importancia {
   if (!Number.isInteger(valor) || valor < 1 || valor > 4) {
     throw new RangeError(`${nombre} must be an integer from 1 to 4, got ${valor}`);
   }
