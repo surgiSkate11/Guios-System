@@ -1,8 +1,9 @@
 import { ChevronDown, FileText } from 'lucide-react'
 import { useState } from 'react'
 import { NavLink, useLocation } from 'react-router'
+import { useAuth } from '../auth/auth-context'
 import { Brand } from '../components/Brand'
-import { NAVIGATION, isNavGroup, type NavGroupItem, type NavLinkItem } from '../navigation'
+import { navigationFor, isNavGroup, type NavGroupItem, type NavLinkItem } from '../navigation'
 
 const itemBase =
   'flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-brand-600'
@@ -78,11 +79,13 @@ function SidebarGroup({ item }: { item: NavGroupItem }) {
 }
 
 export function Sidebar() {
+  const { usuario } = useAuth()
+  const items = usuario ? navigationFor(usuario.rol) : []
   return (
     <aside className="flex w-64 shrink-0 flex-col border-r border-slate-200 bg-white px-5 py-5">
       <Brand />
       <nav aria-label="Navegación principal" className="mt-6 flex-1 space-y-1">
-        {NAVIGATION.map((item) =>
+        {items.map((item) =>
           isNavGroup(item) ? (
             <SidebarGroup key={item.label} item={item} />
           ) : (

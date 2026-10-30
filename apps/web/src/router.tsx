@@ -14,9 +14,11 @@ import {
   Users,
 } from 'lucide-react'
 import { Navigate, type RouteObject } from 'react-router'
+import { AuthRoot, PublicOnly, RequireAuth } from './auth/guards'
 import { AppLayout } from './layout/AppLayout'
 import { LoginPage } from './pages/auth/LoginPage'
 import { PendingAuthPage } from './pages/auth/PendingAuthPage'
+import { RegistroPage } from './pages/auth/RegistroPage'
 import { PlaceholderPage, type PlaceholderPageProps } from './pages/PlaceholderPage'
 
 /** Screens of the authenticated area; each one becomes a real module later. */
@@ -105,18 +107,33 @@ function screen(key: keyof typeof SCREENS) {
   return <PlaceholderPage {...SCREENS[key]!} />
 }
 
-export const routes: RouteObject[] = [
-  { path: '/login', element: <LoginPage /> },
+const appRoutes: RouteObject[] = [
+  {
+    path: '/login',
+    element: (
+      <PublicOnly>
+        <LoginPage />
+      </PublicOnly>
+    ),
+  },
   {
     path: '/registro',
-    element: <PendingAuthPage title="Crear cuenta" covers="RF-01, HU-18" />,
+    element: (
+      <PublicOnly>
+        <RegistroPage />
+      </PublicOnly>
+    ),
   },
   {
     path: '/recuperar',
     element: <PendingAuthPage title="Recuperar contraseña" covers="RF-25" />,
   },
   {
-    element: <AppLayout />,
+    element: (
+      <RequireAuth>
+        <AppLayout />
+      </RequireAuth>
+    ),
     children: [
       { index: true, element: <Navigate to="/inicio" replace /> },
       { path: 'inicio', element: screen('inicio') },
@@ -142,3 +159,5 @@ export const routes: RouteObject[] = [
   },
   { path: '*', element: <Navigate to="/inicio" replace /> },
 ]
+
+export const routes: RouteObject[] = [{ element: <AuthRoot />, children: appRoutes }]

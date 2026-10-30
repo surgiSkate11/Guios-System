@@ -7,6 +7,8 @@ import {
   Users,
   type LucideIcon,
 } from 'lucide-react'
+import { puedeAcceder } from './auth/permissions'
+import type { Rol } from './auth/session'
 
 export interface NavLinkItem {
   label: string
@@ -50,3 +52,12 @@ export const NAVIGATION: NavItem[] = [
   { label: 'Catálogo de factores', to: '/admin/catalogo', icon: ListChecks },
   { label: 'Configuración', to: '/admin/configuracion', icon: Settings },
 ]
+
+/** Sidebar entries the role may open; a group without allowed children disappears. */
+export function navigationFor(rol: Rol): NavItem[] {
+  return NAVIGATION.flatMap((item): NavItem[] => {
+    if (!isNavGroup(item)) return puedeAcceder(rol, item.to) ? [item] : []
+    const children = item.children.filter((child) => puedeAcceder(rol, child.to))
+    return children.length > 0 ? [{ ...item, children }] : []
+  })
+}

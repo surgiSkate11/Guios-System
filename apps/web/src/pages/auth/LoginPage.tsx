@@ -1,23 +1,36 @@
 import { useState, type FormEvent } from 'react'
-import { Link } from 'react-router'
+import { Link, useNavigate } from 'react-router'
+import { useAuth } from '../../auth/auth-context'
 import { AuthCard } from './AuthCard'
-
-const inputClass =
-  'w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm placeholder:text-slate-400 focus-visible:outline-2 focus-visible:outline-brand-600'
+import { errorMessage, inputClass, labelClass, submitClass } from './form'
+import { FormError, PasswordField } from './PasswordField'
 
 export function LoginPage() {
-  const [showPassword, setShowPassword] = useState(false)
+  const { login } = useAuth()
+  const navigate = useNavigate()
+  const [error, setError] = useState<string | null>(null)
+  const [sending, setSending] = useState(false)
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    // Authentication against the API is wired in T5.
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    const data = new FormData(event.currentTarget)
+    setError(null)
+    setSending(true)
+    try {
+      await login(String(data.get('email')), String(data.get('password')))
+      navigate('/inicio', { replace: true })
+    } catch (failure) {
+      setError(errorMessage(failure))
+      setSending(false)
+    }
   }
 
   return (
     <AuthCard>
       <form onSubmit={handleSubmit} className="space-y-4">
+        <FormError message={error} />
         <div>
-          <label htmlFor="email" className="mb-1.5 block text-xs font-semibold text-slate-800">
+          <label htmlFor="email" className={labelClass}>
             Correo
           </label>
           <input
@@ -30,37 +43,13 @@ export function LoginPage() {
             className={inputClass}
           />
         </div>
-        <div>
-          <label htmlFor="password" className="mb-1.5 block text-xs font-semibold text-slate-800">
-            Contraseña
-          </label>
-          <div className="relative">
-            <input
-              id="password"
-              name="password"
-              type={showPassword ? 'text' : 'password'}
-              autoComplete="current-password"
-              required
-              className={`${inputClass} pr-20`}
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword((value) => !value)}
-              className="absolute top-1/2 right-3 -translate-y-1/2 text-xs text-slate-500 hover:text-slate-800"
-            >
-              {showPassword ? 'Ocultar' : 'Mostrar'}
-            </button>
-          </div>
-        </div>
+        <PasswordField autoComplete="current-password" />
         <div className="text-right">
           <Link to="/recuperar" className="text-xs text-blue-600 hover:underline">
             ¿Olvidaste tu contraseña?
           </Link>
         </div>
-        <button
-          type="submit"
-          className="w-full rounded-lg bg-brand-600 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
-        >
+        <button type="submit" disabled={sending} className={submitClass}>
           Iniciar sesión
         </button>
         <p className="text-center text-xs text-slate-500">
