@@ -1,4 +1,4 @@
-import { INestApplication } from '@nestjs/common';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
 
 /** Global prefix shared by every REST route. */
 export const API_PREFIX = 'api';
@@ -9,4 +9,12 @@ export const API_PREFIX = 'api';
  */
 export function configureApp(app: INestApplication): void {
   app.setGlobalPrefix(API_PREFIX);
+  // Unknown body fields are rejected (e.g. a self-chosen "rol" on sign-up).
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
 }
