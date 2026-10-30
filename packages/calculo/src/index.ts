@@ -6,3 +6,4 @@ export * from "./estadistica.js";
 export * from "./importancia.js";
 export * from "./consolidacion.js";
 export * from "./ponderacion.js";
+export * from "./resultado.js";

@@ -49,6 +49,14 @@ describe("RN-06 importanciaRelativa and esRelevante", () => {
     expect(esRelevante(4)).toBe(true);
   });
 
+  it("HU-03: judges 3, 3 and 4 on a factor with IS 3 give ID 3, IR 3 and relevant", () => {
+    const id = consolidarImportanciaDecisor([3, 3, 4]);
+    const ir = importanciaRelativa(3, id);
+    expect(id).toBe(3);
+    expect(ir).toBe(3);
+    expect(esRelevante(ir)).toBe(true);
+  });
+
   it("rejects IR outside 1-4", () => {
     expect(() => esRelevante(0 as Importancia)).toThrow(RangeError);
   });

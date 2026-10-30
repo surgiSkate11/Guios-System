@@ -10,6 +10,13 @@ export type Calificacion = 1 | 2 | 3 | 4 | typeof DESCONOZCO;
 const PM_MINIMA = 1;
 const PM_MAXIMA = 4;
 
+/** Throws a RangeError unless the value is a PM between 1.0 and 4.0. */
+export function validarPonderacionMedia(pm: number): void {
+  if (!Number.isFinite(pm) || pm < PM_MINIMA || pm > PM_MAXIMA) {
+    throw new RangeError(`PM must be between ${PM_MINIMA} and ${PM_MAXIMA}, got ${pm}`);
+  }
+}
+
 /**
  * RN-07. Judge's mean weighting (PM) of a factor: mean of the subfactor ratings,
  * excluding "Desconozco". Returns null when every answer is "Desconozco"; that factor
@@ -36,10 +43,6 @@ export function ponderacionMediaJurado(calificaciones: readonly Calificacion[]):
  */
 export function ponderacionMediaConsolidada(pmJurados: readonly (number | null)[]): number | null {
   const valores = pmJurados.filter((pm): pm is number => pm !== null);
-  for (const pm of valores) {
-    if (!Number.isFinite(pm) || pm < PM_MINIMA || pm > PM_MAXIMA) {
-      throw new RangeError(`PM must be between ${PM_MINIMA} and ${PM_MAXIMA}, got ${pm}`);
-    }
-  }
+  valores.forEach(validarPonderacionMedia);
   return valores.length === 0 ? null : mediana(valores);
 }

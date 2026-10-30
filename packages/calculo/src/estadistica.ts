@@ -25,3 +25,10 @@ export function promedio(valores: readonly number[]): number {
   validarConjunto(valores);
   return valores.reduce((suma, v) => suma + v, 0) / valores.length;
 }
+
+/** Population standard deviation (divides by n). */
+export function desviacionEstandarPoblacional(valores: readonly number[]): number {
+  const media = promedio(valores);
+  const varianza = valores.reduce((suma, v) => suma + (v - media) ** 2, 0) / valores.length;
+  return Math.sqrt(varianza);
+}

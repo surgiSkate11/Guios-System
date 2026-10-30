@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mediana, promedio } from "./index.js";
+import { desviacionEstandarPoblacional, mediana, promedio } from "./index.js";
 
 describe("mediana", () => {
   it("returns the middle value of an odd-sized set regardless of order", () => {
@@ -19,6 +19,20 @@ describe("mediana", () => {
   it("rejects an empty set or non-finite values", () => {
     expect(() => mediana([])).toThrow(RangeError);
     expect(() => mediana([1, Number.NaN])).toThrow(RangeError);
+  });
+});
+
+describe("desviacionEstandarPoblacional", () => {
+  it("divides by n, not n - 1", () => {
+    expect(desviacionEstandarPoblacional([2, 4, 4, 4, 5, 5, 7, 9])).toBe(2);
+  });
+
+  it("returns 0 for a single value", () => {
+    expect(desviacionEstandarPoblacional([5])).toBe(0);
+  });
+
+  it("rejects an empty set", () => {
+    expect(() => desviacionEstandarPoblacional([])).toThrow(RangeError);
   });
 });
 
