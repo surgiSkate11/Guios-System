@@ -14,6 +14,7 @@ desarrolla cada módulo en profundidad. Spec: `doc/GUIOS PRO especificación de 
 - S6. HU-18 (criterio): "Dado un usuario que se registra, cuando completa el formulario, entonces su cuenta queda con rol invitado y no puede abrir pantallas de coordinador ni de administrador, ni siquiera escribiendo la URL."
 - S7. La web reproduce el layout de los prototipos `01 Inicio.png`, `02 Mis evaluaciones.png`, `16 configuracion.png` y `17 login.png`: barra lateral con Inicio, Evaluaciones (Mis evaluaciones, Nuevo proyecto, Calificar factores, Consolidación y alcance, Comparación de softwares, Análisis con IA, Auditoría de jurados), Historial, Jurados, Catálogo de factores, Configuración; barra superior con búsqueda, notificaciones y usuario.
 - S8. Rutas del frontend, spec sección 10: `/login`, `/registro`, `/recuperar`, `/inicio`, `/proyectos/nuevo`, `/evaluaciones`, `/proyectos/:id/...`, `/admin/catalogo`, `/admin/configuracion`.
+- S10. Spec sección 9: `organizacion` "nombre, sector (público, privado, independiente), activo"; `usuario` "nombre, email único, password_hash, rol (invitado, coordinador, administrador), activo". Sección 2: "Cada usuario ve solo los proyectos de su organización." Actor Administrador: "Cuenta creada por defecto al instalar".
 - S9. RNF-05: la clave del servicio de IA solo en el servidor; secretos fuera de git (`.env`).
 
 ## Tasks
@@ -22,7 +23,7 @@ desarrolla cada módulo en profundidad. Spec: `doc/GUIOS PRO especificación de 
 | --- | --- | --- | --- | --- | --- |
 | T1 | S2 | API NestJS: esqueleto, configuración por `.env`, `GET /api/health` con prueba | inline | hecha | db83901 |
 | T2 | S2, S7, S8 | Web Vite + React + Tailwind: layout del prototipo, rutas y páginas base | inline | hecha | c9c1409 |
-| T3 | S3, S4 | Prisma + PostgreSQL: `organizacion`, `usuario`, migración y seed del administrador | inline | bloqueada (PostgreSQL) | |
+| T3 | S3, S4, S10 | Prisma + PostgreSQL: `organizacion`, `usuario`, migración, hash de contraseñas y seed idempotente del administrador | gentle-ai-worker | en curso | |
 | T4 | S4, S5, S6 | Autenticación: registro (invitado), login JWT, guards por rol, pruebas e2e | inline | pendiente | |
 | T5 | S5, S6, S7 | Web: login real contra la API, rutas protegidas por rol | inline | pendiente | |
 | T6 | S1 | `AGENTS.md` y README con comandos verificados | inline | hecha | ver git log (docs: agregar AGENTS.md) |
@@ -36,5 +37,6 @@ desarrolla cada módulo en profundidad. Spec: `doc/GUIOS PRO especificación de 
 - L6 (decisión): todas las rutas REST bajo el prefijo `/api` (el proxy de Vite reenvía `/api` sin CORS). Jest se mantiene en la API (estándar de Nest); Vitest en `calculo` y `web`.
 - L7 (restricción): la política del agente bloquea escribir archivos `.env*`; las variables se documentan en el README y el usuario crea `apps/api/.env`.
 - L8 (decisión): Vitest 5 en todo el monorepo y Vite 8 como devDependency de la raíz para tener una sola copia (Vitest 3 / Tailwind arrastraban Vite 7 y rompían los tipos). Rutas del menú sin proyecto en `/evaluaciones/<pantalla>`; las rutas de la spec `/proyectos/:id/<pantalla>` también existen.
+- L10 (usuario): PostgreSQL 18 instalado (servicio `postgresql-x64-18`), base `guios` creada, `apps/api/.env` creado por el usuario con `PORT`, `DATABASE_URL`, `JWT_SECRET`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`. El agente no lee ese archivo.
 - L5 (pendiente): datos del proyecto de referencia de HU-06 (72.3 y 70.0) no están en el PDF; se piden al usuario.
 - L9 (entrega): corte 1 = db83901..3b2d91f (API con /health + web base + prototipos), ~1220 líneas en 3 commits. PR y merge los decide el usuario.
