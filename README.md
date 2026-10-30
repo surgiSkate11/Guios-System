@@ -10,8 +10,8 @@ organization's requirement, with one or more judges. Full specification:
 | --- | --- |
 | `packages/calculo` | `@guios/calculo`: calculation rules RN-01 to RN-14, shared by API and web |
 | `apps/api` | `@guios/api`: NestJS REST API, every route under `/api` |
-| `apps/web` | React + Vite frontend (pending) |
-| `doc/` | Requirements specification |
+| `apps/web` | `@guios/web`: React + Vite + Tailwind frontend |
+| `doc/` | Requirements specification and prototype screens (`doc/img prototitpo/`) |
 
 ## Requirements
 
@@ -27,6 +27,7 @@ npm run typecheck   # type-check every workspace
 npm test            # run every workspace's tests
 
 npm run start:dev -w @guios/api   # API in watch mode on http://localhost:3000/api
+npm run dev -w @guios/web         # web on http://localhost:5173 (proxies /api to the API)
 ```
 
 ## API environment

@@ -20,8 +20,8 @@ desarrolla cada módulo en profundidad. Spec: `doc/GUIOS PRO especificación de 
 
 | ID | Specs | Tarea | Ruta | Estado | Commit |
 | --- | --- | --- | --- | --- | --- |
-| T1 | S2 | API NestJS: esqueleto, configuración por `.env`, `GET /health` con prueba | inline | pendiente | |
-| T2 | S2, S7, S8 | Web Vite + React + Tailwind: layout del prototipo, rutas y páginas base | inline | pendiente | |
+| T1 | S2 | API NestJS: esqueleto, configuración por `.env`, `GET /api/health` con prueba | inline | hecha | db83901 |
+| T2 | S2, S7, S8 | Web Vite + React + Tailwind: layout del prototipo, rutas y páginas base | inline | hecha | bc9c806 |
 | T3 | S3, S4 | Prisma + PostgreSQL: `organizacion`, `usuario`, migración y seed del administrador | inline | bloqueada (PostgreSQL) | |
 | T4 | S4, S5, S6 | Autenticación: registro (invitado), login JWT, guards por rol, pruebas e2e | inline | pendiente | |
 | T5 | S5, S6, S7 | Web: login real contra la API, rutas protegidas por rol | inline | pendiente | |
@@ -33,4 +33,7 @@ desarrolla cada módulo en profundidad. Spec: `doc/GUIOS PRO especificación de 
 - L2 (usuario): elige "PostgreSQL instalado en Windows (recomendado)". PostgreSQL y Docker no están instalados en la máquina; el usuario lo instala.
 - L3 (decisión): ORM Prisma (esquema legible y migraciones explícitas); estilos con Tailwind (el diseño usa espaciado y colores regulares).
 - L4 (pendiente): RN-13 y RN-14 del paquete de cálculo quedan para el módulo de resultados y el de catálogo.
+- L6 (decisión): todas las rutas REST bajo el prefijo `/api` (el proxy de Vite reenvía `/api` sin CORS). Jest se mantiene en la API (estándar de Nest); Vitest en `calculo` y `web`.
+- L7 (restricción): la política del agente bloquea escribir archivos `.env*`; las variables se documentan en el README y el usuario crea `apps/api/.env`.
+- L8 (decisión): Vitest 5 en todo el monorepo y Vite 8 como devDependency de la raíz para tener una sola copia (Vitest 3 / Tailwind arrastraban Vite 7 y rompían los tipos). Rutas del menú sin proyecto en `/evaluaciones/<pantalla>`; las rutas de la spec `/proyectos/:id/<pantalla>` también existen.
 - L5 (pendiente): datos del proyecto de referencia de HU-06 (72.3 y 70.0) no están en el PDF; se piden al usuario.
