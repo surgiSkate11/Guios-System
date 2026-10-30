@@ -7,3 +7,5 @@ export * from "./importancia.js";
 export * from "./consolidacion.js";
 export * from "./ponderacion.js";
 export * from "./resultado.js";
+export * from "./banderas.js";
+export * from "./evidencia.js";
