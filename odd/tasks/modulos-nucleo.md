@@ -1,0 +1,38 @@
+# Feature: módulos núcleo de GUIOS PRO
+
+Desarrollo de la mayor parte del sistema antes de repartirlo al equipo, en dos sesiones
+sincronizadas por el contrato `docs/api-contract.md`. Rama `feat/modulos-nucleo`.
+
+## Specs
+
+- S1. Usuario: "antes de pasarle al equipo quiero q sigamos avanzando para q ellos hagan menos así q trabaja con la sesion 2 y desarrollen un plan para q de manera optima sin gastar demasiados tokens , trabajando de manera muy perfecta y sincronizada avancemoz con el desarrollo de la mayor parte del sistema"
+- S2. Contrato de la API: `docs/api-contract.md` (A1 a A6). La API lo implementa y la web lo consume; cualquier cambio pasa por el dueño de la API.
+- S3. Jurado es un rol por proyecto: "un coorinador puede enviar una solicitud a un usuario para q se convierta en jurado de un proyecto" (L14 de base-sistema).
+- S4. El administrador no crea proyectos (L16 de base-sistema). Permisos en el servidor (RNF-08); proyectos cerrados inmutables (RNF-09).
+- S5. Cálculos solo con `@guios/calculo` (RNF-03).
+
+## Tasks
+
+| ID | Specs | Tarea | Ruta | Estado | Commit |
+| --- | --- | --- | --- | --- | --- |
+| A1 | S2, S4 | API: organizaciones, usuarios (admin), parámetros | sesión 1 | pendiente | |
+| A2 | S2 | API: catálogo de lectura y carga desde JSON | sesión 1 | pendiente | |
+| A3 | S2, S3, S4 | API: proyectos, softwares, jurados, solicitudes, guard de acceso | sesión 1 | pendiente | |
+| A4 | S2, S5 | API: importancias y calificaciones del jurado | sesión 1 | pendiente | |
+| A5 | S2, S5 | API: consolidación y alcance | sesión 1 | pendiente | |
+| A6 | S2, S5 | API: resultados, banderas, resultado personal, auditoría | sesión 1 | pendiente | |
+| W1 | S2 | Web: Configuración (parámetros, usuarios y roles, organizaciones) | sesión 2 | pendiente | |
+| W2 | S2, S3 | Web: Inicio, Mis evaluaciones, Nuevo proyecto, detalle con softwares y jurados, solicitudes | sesión 2 | pendiente | |
+| W3 | S2 | Web: Catálogo de factores (lectura) | sesión 2 | pendiente | |
+| W4 | S2 | Web: pasos 1 a 4 del jurado (importancia y calificación con guardado inmediato) | sesión 2 | pendiente | |
+| W5 | S2 | Web: Consolidación y alcance | sesión 2 | pendiente | |
+| W6 | S2 | Web: Resultado, Comparación y Auditoría | sesión 2 | pendiente | |
+
+Quedan para el equipo: exportar PDF (RF-19), análisis con IA (RF-16), estimación de IS con IA y
+edición o versionado del catálogo (RF-18, RF-22 a RF-24), recuperar contraseña (RF-25).
+
+## Log
+
+- L1 (usuario): ver S1.
+- L2 (decisión): división por capa y no por módulo: sesión 1 es dueña de `apps/api/**` y `docs/api-contract.md`; sesión 2 de `apps/web/**`. Así no comparten archivos y la sincronización es el contrato. Cada sesión hace commit solo de sus rutas (`git add -- <ruta> && git commit -- <ruta>`); nadie hace push.
+- L3 (bloqueo de datos): el PDF no trae los 18 factores y 63 subfactores de la tesis; la carga del catálogo lee un JSON que tiene que proveer el usuario. Las pruebas usan datos sintéticos.
