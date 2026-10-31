@@ -10,7 +10,6 @@ import {
   Layers,
   ListChecks,
   ScanSearch,
-  Settings,
   Users,
 } from 'lucide-react'
 import { Navigate, type RouteObject } from 'react-router'
@@ -19,6 +18,7 @@ import { AppLayout } from './layout/AppLayout'
 import { LoginPage } from './pages/auth/LoginPage'
 import { PendingAuthPage } from './pages/auth/PendingAuthPage'
 import { RegistroPage } from './pages/auth/RegistroPage'
+import { ConfiguracionPage } from './pages/configuracion/ConfiguracionPage'
 import { PlaceholderPage, type PlaceholderPageProps } from './pages/PlaceholderPage'
 
 /** Screens of the authenticated area; each one becomes a real module later. */
@@ -95,12 +95,6 @@ const SCREENS: Record<string, PlaceholderPageProps> = {
     icon: ListChecks,
     covers: 'RF-18, RF-22 a RF-24, HU-12, HU-21 a HU-24',
   },
-  configuracion: {
-    title: 'Configuración',
-    subtitle: 'Parámetros del sistema de evaluación',
-    icon: Settings,
-    covers: 'parámetros de análisis, usuarios, roles y organizaciones',
-  },
 }
 
 function screen(key: keyof typeof SCREENS) {
@@ -154,7 +148,7 @@ const appRoutes: RouteObject[] = [
       { path: 'historial', element: screen('historial') },
       { path: 'jurados', element: screen('jurados') },
       { path: 'admin/catalogo', element: screen('catalogo') },
-      { path: 'admin/configuracion', element: screen('configuracion') },
+      { path: 'admin/configuracion', element: <ConfiguracionPage /> },
     ],
   },
   { path: '*', element: <Navigate to="/inicio" replace /> },
