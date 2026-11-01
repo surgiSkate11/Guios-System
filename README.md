@@ -63,6 +63,7 @@ npm run typecheck   # every workspace
 npm run db:migrate -w @guios/api    # create and apply a migration after editing prisma/schema.prisma
 npm run db:deploy -w @guios/api     # apply pending migrations
 npm run db:seed -w @guios/api       # create the default administrator (idempotent)
+npm run db:catalogo -w @guios/api   # load the thesis catalog from prisma/catalogo.json (idempotent)
 npm run db:generate -w @guios/api   # regenerate the Prisma client
 ```
 
@@ -73,15 +74,28 @@ The API e2e tests never touch your development database. They derive a second UR
 needed, apply every migration to it and empty its tables between tests. The PostgreSQL
 user in `DATABASE_URL` therefore needs permission to create databases.
 
-## API endpoints so far
+## Thesis catalog
 
-| Method and path | Access | Purpose |
-| --- | --- | --- |
-| `GET /api/health` | public | Health check |
-| `POST /api/auth/registro` | public | Self sign-up; always creates role `invitado` |
-| `POST /api/auth/login` | public | Returns `{ accessToken, usuario }` |
-| `GET /api/auth/me` | any signed-in user | Current user |
-| `GET /api/usuarios` | `administrador` | List users |
+`npm run db:catalogo -w @guios/api -- [file]` loads catalog version 1 from a JSON file
+(default `apps/api/prisma/catalogo.json`). It validates the whole file before writing and does
+nothing if a catalog already exists. Format:
 
-Every other route requires `Authorization: Bearer <token>` by default; open a route with
-`@Public()` and restrict it with `@Roles(...)` (`apps/api/src/auth/decorators.ts`).
+```json
+{
+  "motivo": "Catálogo validado de la tesis",
+  "cortes": { "rq1": 1.86, "rq2": 3.65, "rq3": 4.78 },
+  "dimensiones": [
+    { "nombre": "Tecnológica", "factores": [
+      { "nombre": "Usabilidad", "sugeridaDefault": 3, "alcanceDefault": "externo",
+        "subfactores": ["Interfaz intuitiva", "Curva de aprendizaje baja"] }
+    ] }
+  ]
+}
+```
+
+## API
+
+The full REST contract is in [`docs/api-contract.md`](docs/api-contract.md). Every route requires
+`Authorization: Bearer <token>` unless marked public; open a route with `@Public()` and restrict it
+with `@Roles(...)` (`apps/api/src/auth/decorators.ts`). Project routes also check, on the server,
+that the user is the project coordinator or one of its judges.
