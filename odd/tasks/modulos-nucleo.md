@@ -15,13 +15,13 @@ sincronizadas por el contrato `docs/api-contract.md`. Rama `feat/modulos-nucleo`
 
 | ID | Specs | Tarea | Ruta | Estado | Commit |
 | --- | --- | --- | --- | --- | --- |
-| A1 | S2, S4 | API: organizaciones, usuarios (admin), parámetros | sesión 1 | pendiente | |
-| A2 | S2 | API: catálogo de lectura y carga desde JSON | sesión 1 | pendiente | |
-| A3 | S2, S3, S4 | API: proyectos, softwares, jurados, solicitudes, guard de acceso | sesión 1 | pendiente | |
-| A4 | S2, S5 | API: importancias y calificaciones del jurado | sesión 1 | pendiente | |
-| A5 | S2, S5 | API: consolidación y alcance | sesión 1 | pendiente | |
-| A6 | S2, S5 | API: resultados, banderas, resultado personal, auditoría | sesión 1 | pendiente | |
-| W1 | S2 | Web: Configuración (parámetros, usuarios y roles, organizaciones) | sesión 2 | pendiente | |
+| A1 | S2, S4 | API: organizaciones, usuarios (admin), parámetros | sesión 1 | hecha | f52f836 |
+| A2 | S2 | API: catálogo de lectura y carga desde JSON | sesión 1 | hecha | bc8f400 |
+| A3 | S2, S3, S4 | API: proyectos, softwares, jurados, solicitudes, guard de acceso | sesión 1 | hecha | f618fa6 |
+| A4 | S2, S5 | API: importancias y calificaciones del jurado | sesión 1 | hecha | 89345b3 |
+| A5 | S2, S5 | API: consolidación y alcance | sesión 1 | hecha | 89345b3 |
+| A6 | S2, S5 | API: resultados, banderas, resultado personal, auditoría | sesión 1 | hecha | 69b3960 |
+| W1 | S2 | Web: Configuración (parámetros, usuarios y roles, organizaciones) | sesión 2 | hecha | ca88fdb |
 | W2 | S2, S3 | Web: Inicio, Mis evaluaciones, Nuevo proyecto, detalle con softwares y jurados, solicitudes | sesión 2 | pendiente | |
 | W3 | S2 | Web: Catálogo de factores (lectura) | sesión 2 | pendiente | |
 | W4 | S2 | Web: pasos 1 a 4 del jurado (importancia y calificación con guardado inmediato) | sesión 2 | pendiente | |
@@ -36,3 +36,4 @@ edición o versionado del catálogo (RF-18, RF-22 a RF-24), recuperar contraseñ
 - L1 (usuario): ver S1.
 - L2 (decisión): división por capa y no por módulo: sesión 1 es dueña de `apps/api/**` y `docs/api-contract.md`; sesión 2 de `apps/web/**`. Así no comparten archivos y la sincronización es el contrato. Cada sesión hace commit solo de sus rutas (`git add -- <ruta> && git commit -- <ruta>`); nadie hace push.
 - L3 (bloqueo de datos): el PDF no trae los 18 factores y 63 subfactores de la tesis; la carga del catálogo lee un JSON que tiene que proveer el usuario. Las pruebas usan datos sintéticos.
+- L4 (avance): API completa contra el contrato (A1-A6), 125 e2e + 4 unitarias en verde. Cargador del catálogo listo; el JSON real de la tesis lo provee el usuario.
