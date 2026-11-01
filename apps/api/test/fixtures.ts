@@ -55,3 +55,66 @@ export async function crearOrganizacion(
 ) {
   return prisma.organizacion.create({ data: { nombre, sector: 'privado' } });
 }
+
+type Catalogo = Awaited<ReturnType<typeof seedCatalogo>>;
+
+/**
+ * Project "en_curso" in the "Tecnológica" dimension (Usabilidad IS 3, Documentación IS 2)
+ * with two software and the given active judges.
+ */
+export async function crearProyectoEnCurso(
+  prisma: PrismaClient,
+  cat: Catalogo,
+  idCoordinador: number,
+  idOrganizacion: number,
+  jurados: number[],
+  metodoConsolidacion: 'mediana' | 'promedio' = 'mediana',
+) {
+  const proyecto = await prisma.proyectoEvaluacion.create({
+    data: {
+      nombre: 'Proyecto de prueba',
+      fechaInicio: new Date('2026-10-01'),
+      estado: 'en_curso',
+      metodoConsolidacion,
+      idOrganizacion,
+      idCoordinador,
+      idCatalogoVersion: cat.version.id,
+      dimensiones: { create: [{ idDimension: cat.tec.id }] },
+      softwares: {
+        create: [{ nombre: 'Software A' }, { nombre: 'Software B' }],
+      },
+      factores: {
+        create: [
+          {
+            idFactor: cat.usabilidad.id,
+            impSugerida: 3,
+            alcanceEfectivo: 'externo',
+          },
+          {
+            idFactor: cat.documentacion.id,
+            impSugerida: 2,
+            alcanceEfectivo: 'externo',
+          },
+        ],
+      },
+      jurados: {
+        create: jurados.map((idUsuario) => ({
+          idUsuario,
+          estado: 'activo' as const,
+          dimensiones: { create: [{ idDimension: cat.tec.id }] },
+        })),
+      },
+    },
+    include: {
+      softwares: { orderBy: { id: 'asc' } },
+      factores: { orderBy: { idFactor: 'asc' } },
+    },
+  });
+  const [usabilidad, documentacion] = proyecto.factores;
+  return {
+    id: proyecto.id,
+    softwares: proyecto.softwares,
+    pfUsabilidad: usabilidad.id,
+    pfDocumentacion: documentacion.id,
+  };
+}
