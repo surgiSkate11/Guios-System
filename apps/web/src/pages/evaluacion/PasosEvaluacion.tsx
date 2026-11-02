@@ -36,7 +36,11 @@ export function PasosEvaluacion({ children }: { children: (proyecto: ProyectoRes
         <h1 className="text-3xl font-bold text-slate-900">{proyecto.nombre}</h1>
         <EstadoProyectoEtiqueta estado={proyecto.estado} />
       </div>
-      <p className="mt-1 text-slate-500">Evaluando como jurado: {usuario?.nombre}</p>
+      <p className="mt-1 text-slate-500">
+        {proyecto.miRol === 'coordinador'
+          ? `Coordinador: ${usuario?.nombre}`
+          : `Evaluando como jurado: ${usuario?.nombre}`}
+      </p>
       <nav aria-label="Pasos de la evaluación" className="mt-6 mb-5 flex gap-8 border-b border-slate-200">
         {PASOS.map((paso) => (
           <NavLink

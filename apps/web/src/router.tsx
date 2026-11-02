@@ -1,15 +1,15 @@
 import {
-  BarChart3,
   Bot,
-  GitCompareArrows,
   History,
   ListChecks,
-  ScanSearch,
 } from 'lucide-react'
 import { Navigate, type RouteObject } from 'react-router'
 import { AuthRoot, PublicOnly, RequireAuth } from './auth/guards'
 import { AppLayout } from './layout/AppLayout'
 import { ConsolidacionPage, ConsolidacionSelectorPage } from './pages/consolidacion/ConsolidacionPage'
+import { AuditoriaPage, AuditoriaSelectorPage } from './pages/resultados/AuditoriaPage'
+import { ComparacionPage, ComparacionSelectorPage } from './pages/resultados/ComparacionPage'
+import { ResultadoPage } from './pages/resultados/ResultadoPage'
 import { CalificarPage } from './pages/evaluacion/CalificarPage'
 import { ImportanciaPage } from './pages/evaluacion/ImportanciaPage'
 import { SubfactoresPage } from './pages/evaluacion/SubfactoresPage'
@@ -26,29 +26,11 @@ import { PlaceholderPage, type PlaceholderPageProps } from './pages/PlaceholderP
 
 /** Screens of the authenticated area; each one becomes a real module later. */
 const SCREENS: Record<string, PlaceholderPageProps> = {
-  resultado: {
-    title: 'Resultado',
-    subtitle: 'FODA, métrica y nivel de adopción por software',
-    icon: BarChart3,
-    covers: 'RF-09 a RF-13, HU-06',
-  },
-  comparacion: {
-    title: 'Comparación de softwares',
-    subtitle: 'Ranking, métrica, FODA y dispersión',
-    icon: GitCompareArrows,
-    covers: 'RF-14, RF-15, RF-19, HU-07, HU-08',
-  },
   analisis: {
     title: 'Análisis con IA',
     subtitle: 'Análisis en texto asistido por inteligencia artificial',
     icon: Bot,
     covers: 'RF-16, HU-09',
-  },
-  auditoria: {
-    title: 'Auditoría de jurados',
-    subtitle: 'Importancias y calificaciones de cada jurado',
-    icon: ScanSearch,
-    covers: 'RF-20, HU-13',
   },
   historial: {
     title: 'Historial',
@@ -101,18 +83,18 @@ const appRoutes: RouteObject[] = [
       { path: 'evaluaciones', element: <EvaluacionesPage /> },
       { path: 'evaluaciones/calificar', element: <CalificarPage /> },
       { path: 'evaluaciones/consolidacion', element: <ConsolidacionSelectorPage /> },
-      { path: 'evaluaciones/comparacion', element: screen('comparacion') },
+      { path: 'evaluaciones/comparacion', element: <ComparacionSelectorPage /> },
       { path: 'evaluaciones/analisis', element: screen('analisis') },
-      { path: 'evaluaciones/auditoria', element: screen('auditoria') },
+      { path: 'evaluaciones/auditoria', element: <AuditoriaSelectorPage /> },
       { path: 'proyectos/nuevo', element: <NuevoProyectoPage /> },
       { path: 'proyectos/:id', element: <ProyectoDetallePage /> },
       { path: 'proyectos/:id/importancia', element: <ImportanciaPage /> },
       { path: 'proyectos/:id/subfactores', element: <SubfactoresPage /> },
-      { path: 'proyectos/:id/resultado', element: screen('resultado') },
+      { path: 'proyectos/:id/resultado', element: <ResultadoPage /> },
       { path: 'proyectos/:id/consolidacion', element: <ConsolidacionPage /> },
-      { path: 'proyectos/:id/comparacion', element: screen('comparacion') },
+      { path: 'proyectos/:id/comparacion', element: <ComparacionPage /> },
       { path: 'proyectos/:id/analisis', element: screen('analisis') },
-      { path: 'proyectos/:id/auditoria', element: screen('auditoria') },
+      { path: 'proyectos/:id/auditoria', element: <AuditoriaPage /> },
       { path: 'historial', element: screen('historial') },
       { path: 'jurados', element: <JuradosPage /> },
       { path: 'admin/catalogo', element: screen('catalogo') },
