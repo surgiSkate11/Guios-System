@@ -11,8 +11,8 @@ import {
   campoClass,
   EstadoCarga,
   type Aviso,
-} from './ui'
-import { avisoDeError, useCarga } from './carga'
+} from '../../components/ui'
+import { avisoDeError, useCarga } from '../../components/carga'
 
 type ClaveUmbral = Exclude<keyof Parametros, 'metodoConsolidacion'>
 

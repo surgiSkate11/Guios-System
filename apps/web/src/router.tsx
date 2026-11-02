@@ -1,16 +1,12 @@
 import {
   BarChart3,
   Bot,
-  ClipboardCheck,
   ClipboardList,
-  FolderPlus,
   GitCompareArrows,
   History,
-  House,
   Layers,
   ListChecks,
   ScanSearch,
-  Users,
 } from 'lucide-react'
 import { Navigate, type RouteObject } from 'react-router'
 import { AuthRoot, PublicOnly, RequireAuth } from './auth/guards'
@@ -19,28 +15,15 @@ import { LoginPage } from './pages/auth/LoginPage'
 import { PendingAuthPage } from './pages/auth/PendingAuthPage'
 import { RegistroPage } from './pages/auth/RegistroPage'
 import { ConfiguracionPage } from './pages/configuracion/ConfiguracionPage'
+import { EvaluacionesPage } from './pages/proyectos/EvaluacionesPage'
+import { InicioPage } from './pages/proyectos/InicioPage'
+import { JuradosPage } from './pages/proyectos/JuradosPage'
+import { NuevoProyectoPage } from './pages/proyectos/NuevoProyectoPage'
+import { ProyectoDetallePage } from './pages/proyectos/ProyectoDetallePage'
 import { PlaceholderPage, type PlaceholderPageProps } from './pages/PlaceholderPage'
 
 /** Screens of the authenticated area; each one becomes a real module later. */
 const SCREENS: Record<string, PlaceholderPageProps> = {
-  inicio: {
-    title: 'Inicio',
-    subtitle: 'Resumen de tus proyectos de evaluación',
-    icon: House,
-    covers: 'panel de inicio y pendientes',
-  },
-  evaluaciones: {
-    title: 'Mis evaluaciones',
-    subtitle: 'Proyectos de evaluación de software',
-    icon: ClipboardCheck,
-    covers: 'RF-17, listado de proyectos por estado',
-  },
-  nuevoProyecto: {
-    title: 'Nuevo proyecto',
-    subtitle: 'Crea una evaluación en tres pasos',
-    icon: FolderPlus,
-    covers: 'RF-02, RF-03, HU-01, HU-19',
-  },
   calificar: {
     title: 'Calificar factores',
     subtitle: 'Importancia de factores y calificación de subfactores',
@@ -83,12 +66,6 @@ const SCREENS: Record<string, PlaceholderPageProps> = {
     icon: History,
     covers: 'RF-17, HU-11',
   },
-  jurados: {
-    title: 'Jurados',
-    subtitle: 'Jurados asignados y su estado',
-    icon: Users,
-    covers: 'RF-03, HU-19',
-  },
   catalogo: {
     title: 'Catálogo de factores',
     subtitle: 'Factores, subfactores y versiones del catálogo',
@@ -130,14 +107,15 @@ const appRoutes: RouteObject[] = [
     ),
     children: [
       { index: true, element: <Navigate to="/inicio" replace /> },
-      { path: 'inicio', element: screen('inicio') },
-      { path: 'evaluaciones', element: screen('evaluaciones') },
+      { path: 'inicio', element: <InicioPage /> },
+      { path: 'evaluaciones', element: <EvaluacionesPage /> },
       { path: 'evaluaciones/calificar', element: screen('calificar') },
       { path: 'evaluaciones/consolidacion', element: screen('consolidacion') },
       { path: 'evaluaciones/comparacion', element: screen('comparacion') },
       { path: 'evaluaciones/analisis', element: screen('analisis') },
       { path: 'evaluaciones/auditoria', element: screen('auditoria') },
-      { path: 'proyectos/nuevo', element: screen('nuevoProyecto') },
+      { path: 'proyectos/nuevo', element: <NuevoProyectoPage /> },
+      { path: 'proyectos/:id', element: <ProyectoDetallePage /> },
       { path: 'proyectos/:id/importancia', element: screen('calificar') },
       { path: 'proyectos/:id/subfactores', element: screen('calificar') },
       { path: 'proyectos/:id/resultado', element: screen('resultado') },
@@ -146,7 +124,7 @@ const appRoutes: RouteObject[] = [
       { path: 'proyectos/:id/analisis', element: screen('analisis') },
       { path: 'proyectos/:id/auditoria', element: screen('auditoria') },
       { path: 'historial', element: screen('historial') },
-      { path: 'jurados', element: screen('jurados') },
+      { path: 'jurados', element: <JuradosPage /> },
       { path: 'admin/catalogo', element: screen('catalogo') },
       { path: 'admin/configuracion', element: <ConfiguracionPage /> },
     ],

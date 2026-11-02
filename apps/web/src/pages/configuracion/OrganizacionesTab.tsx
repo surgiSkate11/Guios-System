@@ -12,8 +12,8 @@ import {
   campoClass,
   EstadoCarga,
   type Aviso,
-} from './ui'
-import { avisoDeError, useCarga } from './carga'
+} from '../../components/ui'
+import { avisoDeError, useCarga } from '../../components/carga'
 
 const SECTORES: { valor: Sector; etiqueta: string }[] = [
   { valor: 'publico', etiqueta: 'Público' },

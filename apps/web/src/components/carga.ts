@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { errorMessage } from '../auth/form'
+import { errorMessage } from '../pages/auth/form'
 import type { Aviso } from './ui'
 
 /** Error feedback with the message sent by the server. */
@@ -34,4 +34,29 @@ export function useCarga<T>(cargar: () => Promise<T>) {
   }, [])
 
   return { ...estado, cargando: estado.datos === null && estado.error === null, actualizar }
+}
+
+/**
+ * Runs a write and keeps its feedback: `accion` resolves with the success message.
+ * `ejecutar` resolves true when the write succeeded.
+ */
+export function useAccion() {
+  const [aviso, setAviso] = useState<Aviso>(null)
+  const [ocupado, setOcupado] = useState(false)
+
+  const ejecutar = useCallback(async (accion: () => Promise<string>): Promise<boolean> => {
+    setOcupado(true)
+    setAviso(null)
+    try {
+      setAviso({ tipo: 'ok', texto: await accion() })
+      return true
+    } catch (error) {
+      setAviso(avisoDeError(error))
+      return false
+    } finally {
+      setOcupado(false)
+    }
+  }, [])
+
+  return { aviso, ocupado, ejecutar, limpiar: () => setAviso(null) }
 }

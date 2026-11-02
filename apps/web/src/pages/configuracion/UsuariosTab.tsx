@@ -13,8 +13,8 @@ import {
   campoClass,
   EstadoCarga,
   type Aviso,
-} from './ui'
-import { avisoDeError, useCarga } from './carga'
+} from '../../components/ui'
+import { avisoDeError, useCarga } from '../../components/carga'
 
 const ROLES: { valor: Rol; etiqueta: string }[] = [
   { valor: 'invitado', etiqueta: 'Invitado' },
