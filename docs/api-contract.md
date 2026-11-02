@@ -110,6 +110,8 @@ A closed project is immutable (RNF-09): every write on it returns `409 "El proye
 | `GET /api/proyectos/:id/calificaciones/mias?software=:idSoftware` | — | `{ software: { id, nombre }, factores: { idProyectoFactor, factor: { id, nombre }, dimension: { id, nombre }, ir, pm: number \| null, subfactores: { id, texto, valor: 1-4 \| null, desconozco: boolean, respondido: boolean }[] }[] }` (relevant factors of my dimensions) |
 | `PUT /api/proyectos/:id/calificaciones` | `{ idSoftware, idSubfactor, valor?: 1-4, desconozco?: true }` (exactly one) | `{ idProyectoFactor, pm: number \| null }` |
 
+The consolidation method (`PATCH /api/proyectos/:id`) is frozen once consolidation is confirmed
+(`409 "La consolidación ya fue confirmada"`); sending the same value is accepted.
 Importances can change only before consolidation is confirmed (`409 "La consolidación ya fue confirmada"`);
 ratings only after it (`409 "Primero se debe confirmar la consolidación"`).
 

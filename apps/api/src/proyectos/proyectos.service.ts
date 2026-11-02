@@ -11,6 +11,7 @@ import {
   type EstadoProyecto,
 } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { consolidacionConfirmada } from '../evaluacion/participantes';
 import { AccesoService } from './acceso.service';
 import type {
   ActualizarJuradoDto,
@@ -220,6 +221,14 @@ export class ProyectosService {
   ): Promise<ProyectoResumen> {
     const acceso = await this.acceso.comoCoordinador(id, usuario);
     this.acceso.exigirAbierto(acceso);
+    // The consolidated ID was computed with the current method; the final metric (RN-12)
+    // must use the same one, so the method is frozen once consolidation is confirmed.
+    const cambiaMetodo =
+      dto.metodoConsolidacion !== undefined &&
+      dto.metodoConsolidacion !== acceso.proyecto.metodoConsolidacion;
+    if (cambiaMetodo && (await consolidacionConfirmada(this.prisma, id))) {
+      throw new ConflictException('La consolidación ya fue confirmada');
+    }
     const fechaFin = dto.fechaFin === undefined ? undefined : dto.fechaFin;
     if (
       fechaFin &&

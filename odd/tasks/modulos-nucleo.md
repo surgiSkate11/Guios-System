@@ -25,7 +25,7 @@ sincronizadas por el contrato `docs/api-contract.md`. Rama `feat/modulos-nucleo`
 | W2 | S2, S3 | Web: Inicio, Mis evaluaciones, Nuevo proyecto, detalle con softwares y jurados, solicitudes | sesión 2 | hecha | 26e7542 |
 | W3 | S2 | Web: Catálogo de factores (lectura) | sesión 2 | pendiente | |
 | W4 | S2 | Web: pasos 1 a 4 del jurado (importancia y calificación con guardado inmediato) | sesión 2 | hecha | 7ddfbdc |
-| W5 | S2 | Web: Consolidación y alcance | sesión 2 | pendiente | |
+| W5 | S2 | Web: Consolidación y alcance | sesión 2 | hecha | 92a6f6b |
 | W6 | S2 | Web: Resultado, Comparación y Auditoría | sesión 2 | pendiente | |
 
 Quedan para el equipo: exportar PDF (RF-19), análisis con IA (RF-16), estimación de IS con IA y

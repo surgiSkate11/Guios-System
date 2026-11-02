@@ -215,6 +215,29 @@ describe('Judge answers A4 and consolidation A5 (e2e, test database)', () => {
         .expect(409);
     });
 
+    it('locks the consolidation method once consolidation is confirmed', async () => {
+      const res = await consolidar([3, 3, 4], [1, 1, 1]);
+      expect(res.status).toBe(201);
+      const patch = await t
+        .http()
+        .patch(`/api/proyectos/${p.id}`)
+        .set(coord.auth)
+        .send({ metodoConsolidacion: 'promedio' })
+        .expect(409);
+      expect(patch.body.message).toBe('La consolidación ya fue confirmada');
+      const proyecto = await t.prisma.proyectoEvaluacion.findUniqueOrThrow({
+        where: { id: p.id },
+      });
+      expect(proyecto.metodoConsolidacion).toBe('mediana');
+      // Other fields stay editable.
+      await t
+        .http()
+        .patch(`/api/proyectos/${p.id}`)
+        .set(coord.auth)
+        .send({ nombre: 'Renombrado', metodoConsolidacion: 'mediana' })
+        .expect(200);
+    });
+
     it('uses the mean when the project chooses it', async () => {
       await t.prisma.proyectoEvaluacion.update({
         where: { id: p.id },
