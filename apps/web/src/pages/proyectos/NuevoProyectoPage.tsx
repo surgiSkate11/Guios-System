@@ -8,6 +8,7 @@ import {
   type NuevoSoftware,
   type ProyectoResumen,
 } from '../../api/proyectos'
+import { obtenerParametros } from '../../api/admin'
 import { avisoDeError, useCarga } from '../../components/carga'
 import { PageHeader } from '../../components/PageHeader'
 import { AvisoMensaje, botonClass, campoClass, EstadoCarga, type Aviso } from '../../components/ui'
@@ -91,6 +92,11 @@ export function NuevoProyectoPage() {
   const catalogo = useCarga(obtenerCatalogoVigente)
   const [paso, setPaso] = useState<Paso>('datos')
   const [datos, setDatos] = useState<Datos>(DATOS_INICIALES)
+  const [metodoTocado, setMetodoTocado] = useState(false)
+  const parametros = useCarga(obtenerParametros)
+  // The system default method (A1, readable by any user) applies until the user picks one.
+  const metodo =
+    metodoTocado || !parametros.datos ? datos.metodoConsolidacion : parametros.datos.metodoConsolidacion
   const [softwares, setSoftwares] = useState<NuevoSoftware[]>([])
   const [creado, setCreado] = useState<ProyectoResumen | null>(null)
   const [aviso, setAviso] = useState<Aviso>(null)
@@ -117,7 +123,7 @@ export function NuevoProyectoPage() {
         nombre: datos.nombre.trim(),
         fechaInicio: datos.fechaInicio,
         ...(datos.fechaFin !== '' && { fechaFin: datos.fechaFin }),
-        metodoConsolidacion: datos.metodoConsolidacion,
+        metodoConsolidacion: metodo,
         // Keep the catalog order, not the order of the clicks.
         idDimensiones: dimensiones
           .filter((dimension) => datos.idDimensiones.includes(dimension.id))
@@ -193,10 +199,11 @@ export function NuevoProyectoPage() {
               Método de consolidación
               <select
                 className={campoClass}
-                value={datos.metodoConsolidacion}
-                onChange={(event) =>
+                value={metodo}
+                onChange={(event) => {
+                  setMetodoTocado(true)
                   setDatos({ ...datos, metodoConsolidacion: event.target.value as Metodo })
-                }
+                }}
               >
                 {(Object.keys(ETIQUETA_METODO) as Metodo[]).map((metodo) => (
                   <option key={metodo} value={metodo}>

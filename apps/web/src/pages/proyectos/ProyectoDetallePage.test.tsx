@@ -80,7 +80,8 @@ describe('ProyectoDetallePage as coordinator', () => {
     const user = userEvent.setup()
     const { requests } = abrir()
     await user.type(await screen.findByLabelText('Correo del jurado'), 'luis@correo.com')
-    await user.click(screen.getByRole('button', { name: 'Agregar jurado' }))
+    await user.click(screen.getByRole('button', { name: 'Buscar' }))
+    await user.click(await screen.findByRole('button', { name: 'Invitar' }))
 
     const fila = await screen.findByRole('row', { name: /Luis Mora/ })
     expect(within(fila).getByText('Invitado')).toBeInTheDocument()
@@ -144,7 +145,7 @@ describe('ProyectoDetallePage as coordinator', () => {
   it('is read-only once the project is closed', async () => {
     abrir(proyecto({ estado: 'cerrado', jurados: [JURADO_ACTIVO] }))
     await screen.findByText('Software A')
-    for (const nombre of ['Agregar software', 'Agregar jurado', 'Cerrar proyecto', 'Iniciar evaluación']) {
+    for (const nombre of ['Agregar software', 'Buscar', 'Cerrar proyecto', 'Iniciar evaluación']) {
       expect(screen.queryByRole('button', { name: nombre })).not.toBeInTheDocument()
     }
     expect(screen.queryByRole('button', { name: 'Quitar jurado Luis Mora' })).not.toBeInTheDocument()
@@ -178,7 +179,7 @@ describe('ProyectoDetallePage as judge', () => {
       'href',
       '/proyectos/20/importancia',
     )
-    for (const nombre of ['Agregar software', 'Agregar jurado', 'Iniciar evaluación', 'Cerrar proyecto']) {
+    for (const nombre of ['Agregar software', 'Buscar', 'Iniciar evaluación', 'Cerrar proyecto']) {
       expect(screen.queryByRole('button', { name: nombre })).not.toBeInTheDocument()
     }
   })

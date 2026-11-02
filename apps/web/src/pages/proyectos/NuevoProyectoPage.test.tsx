@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import { COORDINADOR } from '../../test/fake-api'
@@ -52,6 +52,22 @@ describe('NuevoProyectoPage', () => {
     await user.click(screen.getByRole('button', { name: 'Siguiente' }))
     expect(screen.getByRole('alert')).toHaveTextContent('Elige al menos una dimensión')
     expect(screen.queryByLabelText('Nombre del software')).not.toBeInTheDocument()
+  })
+
+  it('starts with the consolidation method of the system parameters', async () => {
+    const { handler } = proyectosApi([], COORDINADOR)
+    abrir((request) =>
+      request.method === 'GET' && request.path === '/api/parametros'
+        ? { status: 200, body: { metodoConsolidacion: 'promedio' } }
+        : handler(request),
+    )
+    await waitFor(() => expect(screen.getByLabelText('Método de consolidación')).toHaveValue('promedio'))
+  })
+
+  it('falls back to the median when the parameters cannot be read', async () => {
+    abrir()
+    await screen.findByRole('checkbox', { name: 'Tecnológica' })
+    expect(screen.getByLabelText('Método de consolidación')).toHaveValue('mediana')
   })
 
   it('shows the server message when the dimensions cannot be loaded', async () => {
@@ -113,7 +129,9 @@ describe('NuevoProyectoPage', () => {
     expect(screen.queryByRole('button', { name: 'Atrás' })).not.toBeInTheDocument()
 
     await user.type(screen.getByLabelText('Correo del jurado'), 'luis@correo.com')
-    await user.click(screen.getByRole('button', { name: 'Agregar jurado' }))
+    await user.click(screen.getByRole('button', { name: 'Buscar' }))
+    expect(await screen.findByText('Luis Mora (luis@correo.com)')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Invitar' }))
     expect(await screen.findByText('Luis Mora')).toBeInTheDocument()
     expect(requests.at(-1)).toMatchObject({
       method: 'POST',
@@ -156,9 +174,10 @@ describe('NuevoProyectoPage', () => {
     await agregarSoftware(user, 'Software A')
     await user.click(screen.getByRole('button', { name: 'Siguiente' }))
     await user.type(await screen.findByLabelText('Correo del jurado'), 'nadie@correo.com')
-    await user.click(screen.getByRole('button', { name: 'Agregar jurado' }))
+    await user.click(screen.getByRole('button', { name: 'Buscar' }))
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'No se encontró un usuario activo con ese correo',
+      'No existe un usuario activo con ese correo',
     )
+    expect(screen.queryByRole('button', { name: 'Invitar' })).not.toBeInTheDocument()
   })
 })
