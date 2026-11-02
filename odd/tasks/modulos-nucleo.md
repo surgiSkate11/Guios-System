@@ -22,11 +22,11 @@ sincronizadas por el contrato `docs/api-contract.md`. Rama `feat/modulos-nucleo`
 | A5 | S2, S5 | API: consolidación y alcance | sesión 1 | hecha | 89345b3 |
 | A6 | S2, S5 | API: resultados, banderas, resultado personal, auditoría | sesión 1 | hecha | 69b3960 |
 | W1 | S2 | Web: Configuración (parámetros, usuarios y roles, organizaciones) | sesión 2 | hecha | ca88fdb |
-| W2 | S2, S3 | Web: Inicio, Mis evaluaciones, Nuevo proyecto, detalle con softwares y jurados, solicitudes | sesión 2 | hecha | 26e7542 |
+| W2 | S2, S3 | Web: Inicio, Mis evaluaciones, Nuevo proyecto, detalle con softwares y jurados, solicitudes | sesión 2 | hecha | 26e7542, a980d04 |
 | W3 | S2 | Web: Catálogo de factores (lectura) | sesión 2 | pendiente | |
 | W4 | S2 | Web: pasos 1 a 4 del jurado (importancia y calificación con guardado inmediato) | sesión 2 | hecha | 7ddfbdc |
 | W5 | S2 | Web: Consolidación y alcance | sesión 2 | hecha | 92a6f6b |
-| W6 | S2 | Web: Resultado, Comparación y Auditoría | sesión 2 | pendiente | |
+| W6 | S2 | Web: Resultado, Comparación y Auditoría | sesión 2 | hecha | 433dcf7 |
 
 Quedan para el equipo: exportar PDF (RF-19), análisis con IA (RF-16), estimación de IS con IA y
 edición o versionado del catálogo (RF-18, RF-22 a RF-24), recuperar contraseña (RF-25).
