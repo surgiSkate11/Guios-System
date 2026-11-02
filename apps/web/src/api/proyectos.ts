@@ -157,3 +157,10 @@ export function rechazarSolicitud(id: number): Promise<void> {
     token: leerToken(),
   })
 }
+
+export function actualizarProyecto(
+  id: number,
+  body: { nombre?: string; fechaFin?: string; metodoConsolidacion?: Metodo },
+): Promise<ProyectoResumen> {
+  return apiFetch<ProyectoResumen>(`/proyectos/${id}`, { method: 'PATCH', body, token: leerToken() })
+}

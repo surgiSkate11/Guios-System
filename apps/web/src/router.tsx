@@ -3,13 +3,13 @@ import {
   Bot,
   GitCompareArrows,
   History,
-  Layers,
   ListChecks,
   ScanSearch,
 } from 'lucide-react'
 import { Navigate, type RouteObject } from 'react-router'
 import { AuthRoot, PublicOnly, RequireAuth } from './auth/guards'
 import { AppLayout } from './layout/AppLayout'
+import { ConsolidacionPage, ConsolidacionSelectorPage } from './pages/consolidacion/ConsolidacionPage'
 import { CalificarPage } from './pages/evaluacion/CalificarPage'
 import { ImportanciaPage } from './pages/evaluacion/ImportanciaPage'
 import { SubfactoresPage } from './pages/evaluacion/SubfactoresPage'
@@ -26,12 +26,6 @@ import { PlaceholderPage, type PlaceholderPageProps } from './pages/PlaceholderP
 
 /** Screens of the authenticated area; each one becomes a real module later. */
 const SCREENS: Record<string, PlaceholderPageProps> = {
-  consolidacion: {
-    title: 'Consolidación y alcance',
-    subtitle: 'Importancia relativa, relevancia y alcance de los factores',
-    icon: Layers,
-    covers: 'RF-05 a RF-07, HU-03, HU-04',
-  },
   resultado: {
     title: 'Resultado',
     subtitle: 'FODA, métrica y nivel de adopción por software',
@@ -106,7 +100,7 @@ const appRoutes: RouteObject[] = [
       { path: 'inicio', element: <InicioPage /> },
       { path: 'evaluaciones', element: <EvaluacionesPage /> },
       { path: 'evaluaciones/calificar', element: <CalificarPage /> },
-      { path: 'evaluaciones/consolidacion', element: screen('consolidacion') },
+      { path: 'evaluaciones/consolidacion', element: <ConsolidacionSelectorPage /> },
       { path: 'evaluaciones/comparacion', element: screen('comparacion') },
       { path: 'evaluaciones/analisis', element: screen('analisis') },
       { path: 'evaluaciones/auditoria', element: screen('auditoria') },
@@ -115,7 +109,7 @@ const appRoutes: RouteObject[] = [
       { path: 'proyectos/:id/importancia', element: <ImportanciaPage /> },
       { path: 'proyectos/:id/subfactores', element: <SubfactoresPage /> },
       { path: 'proyectos/:id/resultado', element: screen('resultado') },
-      { path: 'proyectos/:id/consolidacion', element: screen('consolidacion') },
+      { path: 'proyectos/:id/consolidacion', element: <ConsolidacionPage /> },
       { path: 'proyectos/:id/comparacion', element: screen('comparacion') },
       { path: 'proyectos/:id/analisis', element: screen('analisis') },
       { path: 'proyectos/:id/auditoria', element: screen('auditoria') },
