@@ -24,7 +24,7 @@ sincronizadas por el contrato `docs/api-contract.md`. Rama `feat/modulos-nucleo`
 | W1 | S2 | Web: Configuración (parámetros, usuarios y roles, organizaciones) | sesión 2 | hecha | ca88fdb |
 | W2 | S2, S3 | Web: Inicio, Mis evaluaciones, Nuevo proyecto, detalle con softwares y jurados, solicitudes | sesión 2 | hecha | 26e7542 |
 | W3 | S2 | Web: Catálogo de factores (lectura) | sesión 2 | pendiente | |
-| W4 | S2 | Web: pasos 1 a 4 del jurado (importancia y calificación con guardado inmediato) | sesión 2 | pendiente | |
+| W4 | S2 | Web: pasos 1 a 4 del jurado (importancia y calificación con guardado inmediato) | sesión 2 | hecha | 7ddfbdc |
 | W5 | S2 | Web: Consolidación y alcance | sesión 2 | pendiente | |
 | W6 | S2 | Web: Resultado, Comparación y Auditoría | sesión 2 | pendiente | |
 
@@ -39,3 +39,4 @@ edición o versionado del catálogo (RF-18, RF-22 a RF-24), recuperar contraseñ
 - L4 (avance): API completa contra el contrato (A1-A6), 125 e2e + 4 unitarias en verde. Cargador del catálogo listo; el JSON real de la tesis lo provee el usuario.
 - L5 (usuario): "perfecto lo dejé tood en la carpecta de docs revisa y recuerda q la is es calculada automaticamente por una \"ia\"". Fuentes en docs/ (factors.csv, guiosad_data.csv, guiosad.py del prototipo, matriz xlsx, manual técnico). Aclarado al usuario: según la sección 6 la IA estima citas y el código calcula la IS; los 18 factores de la tesis entran con su IS original (is_origen = tesis).
 - L6 (decisión, usuario: "prfecto hazlo"): "Soporte" viene con alcance "Ambos", que RN-09 no define; se carga como externo y el coordinador puede reclasificarlo por proyecto (RF-07). El catálogo real tiene 61 subfactores, no 63 como dice el PDF; coincide con los ejemplos de la spec (Documentación 11, Compatibilidad 8, Usabilidad 4). Cargado en guios como versión 1.
+- L7 (revisión): revisión nativa de A3 (f618fa6) aprobada con 8 hallazgos no bloqueantes. Se corrige la carrera al invitar dos veces al mismo jurado (500 en vez de 409). Se aceptan por diseño: buscar usuario por correo exacto permite saber si un correo existe (necesario para invitar), y un jurado invitado ve los datos básicos del proyecto antes de aceptar. La rama completa excedía el presupuesto de revisión: se revisa por commits.
