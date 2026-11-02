@@ -16,6 +16,8 @@ import { formatearPm, VALORES } from './escalas'
 import { errorDePaso } from './errores'
 import { PasosEvaluacion } from './PasosEvaluacion'
 
+const AYUDA_DESCONOZCO = 'Para salir de Desconozco, elegí un valor de 1 a 4.'
+
 /** PM shown while the server answers, computed with the shared rule RN-07 (RNF-03). */
 function pmLocal(subfactores: SubfactorCalificado[]): number | null {
   const respuestas: Calificacion[] = subfactores
@@ -178,11 +180,11 @@ function Calificaciones({ proyecto }: { proyecto: ProyectoResumen }) {
                     type="checkbox"
                     aria-label={`Desconozco: ${sub.texto}`}
                     checked={sub.desconozco}
-                    disabled={soloLectura}
-                    // Unchecking means nothing to the API; the judge picks a value instead.
-                    onChange={(event) => {
-                      if (event.target.checked) void responder(sub, { desconozco: true })
-                    }}
+                    // The API has no "unset": leaving Desconozco means picking a value.
+                    disabled={soloLectura || sub.desconozco}
+                    aria-describedby={sub.desconozco ? 'ayuda-desconozco' : undefined}
+                    title={sub.desconozco ? AYUDA_DESCONOZCO : undefined}
+                    onChange={() => void responder(sub, { desconozco: true })}
                     className="size-4 accent-brand-600"
                   />
                 </td>
@@ -191,6 +193,9 @@ function Calificaciones({ proyecto }: { proyecto: ProyectoResumen }) {
             ))}
           </tbody>
         </table>
+        <p id="ayuda-desconozco" className="mt-2 text-xs text-slate-500">
+          {AYUDA_DESCONOZCO}
+        </p>
         <div className="mt-4 flex items-center justify-between rounded-xl bg-brand-50 px-4 py-4 text-brand-700">
           <span className="text-sm">
             Ponderación media del factor {factor.factor.nombre} ({software.nombre})

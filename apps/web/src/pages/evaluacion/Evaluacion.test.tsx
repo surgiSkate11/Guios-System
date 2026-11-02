@@ -164,6 +164,11 @@ describe('Paso 3 y 4: calificación de subfactores (HU-05)', () => {
     const fila = within(tabla).getByRole('row', { name: /Compatible con varios SO/ })
     expect(await within(fila).findByText('Desconozco')).toBeInTheDocument()
     expect(screen.getByTestId('pm')).toHaveTextContent('2.0 / 4')
+    // Leaving Desconozco means picking a value, so the checked box cannot be unchecked.
+    const casilla = within(tabla).getByRole('checkbox', { name: 'Desconozco: Compatible con varios SO' })
+    expect(casilla).toBeChecked()
+    expect(casilla).toBeDisabled()
+    expect(casilla).toHaveAccessibleDescription('Para salir de Desconozco, elegí un valor de 1 a 4.')
   })
 
   it('switches factor and software', async () => {
