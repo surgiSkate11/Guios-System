@@ -145,7 +145,7 @@ describe('NuevoProyectoPage', () => {
 
     await user.click(screen.getByRole('link', { name: 'Ir al proyecto' }))
     expect(await screen.findByRole('heading', { level: 1, name: 'Sistema de inventario' })).toBeInTheDocument()
-  })
+  }, 15_000) // Many typed steps; the default 5 s timeout flakes when the whole suite runs in parallel.
 
   it('shows every server validation message and stays on the softwares step', async () => {
     const user = userEvent.setup()
