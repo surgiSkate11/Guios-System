@@ -69,6 +69,25 @@ describe('Consolidación y alcance (HU-03, HU-04)', () => {
     expect(requests.filter((r) => r.path === '/api/proyectos/10/consolidacion')).toHaveLength(2)
   })
 
+  it('shows the server message when the method can no longer change', async () => {
+    const user = userEvent.setup()
+    const consolidacion = consolidacionApi(10)
+    const proyectos = proyectosApi([proyecto({ id: 10, estado: 'en_curso' })], COORDINADOR)
+    const api = conError(
+      combinar(consolidacion.handler, proyectos.handler),
+      (method, path) => method === 'PATCH' && path === '/api/proyectos/10',
+      409,
+      'La consolidación ya fue confirmada',
+    )
+    renderRoute('/proyectos/10/consolidacion', { usuario: COORDINADOR, api })
+    await screen.findByRole('table', { name: 'Consolidación de importancias' })
+
+    await user.click(screen.getByRole('radio', { name: 'Promedio' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('La consolidación ya fue confirmada')
+    expect(screen.getByRole('radio', { name: 'Mediana' })).toBeChecked()
+  })
+
   it('saves the default scope without justification', async () => {
     const user = userEvent.setup()
     const inicial = consolidacionBase()
