@@ -5,10 +5,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import type { UsuarioPublico } from '../auth/usuario-publico';
-import type {
-  EstadoJurado,
-  EstadoProyecto,
+import {
   Prisma,
+  type EstadoJurado,
+  type EstadoProyecto,
 } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AccesoService } from './acceso.service';
@@ -72,6 +72,8 @@ export interface ProyectoResumen {
   miRol: 'coordinador' | 'jurado';
   miEstadoJurado: EstadoJurado | null;
 }
+
+const YA_ES_JURADO = 'El usuario ya es jurado del proyecto';
 
 const fecha = (valor: Date) => valor.toISOString().slice(0, 10);
 
@@ -339,19 +341,29 @@ export class ProyectosService {
         idProyecto_idUsuario: { idProyecto: id, idUsuario: dto.idUsuario },
       },
     });
-    if (existente)
-      throw new ConflictException('El usuario ya es jurado del proyecto');
-    await this.prisma.juradoProyecto.create({
-      data: {
-        idProyecto: id,
-        idUsuario: dto.idUsuario,
-        // The coordinator judging their own project needs no invitation (RF-21).
-        estado: dto.idUsuario === usuario.id ? 'activo' : 'invitado',
-        dimensiones: {
-          create: idDimensiones.map((idDimension) => ({ idDimension })),
+    if (existente) throw new ConflictException(YA_ES_JURADO);
+    try {
+      await this.prisma.juradoProyecto.create({
+        data: {
+          idProyecto: id,
+          idUsuario: dto.idUsuario,
+          // The coordinator judging their own project needs no invitation (RF-21).
+          estado: dto.idUsuario === usuario.id ? 'activo' : 'invitado',
+          dimensiones: {
+            create: idDimensiones.map((idDimension) => ({ idDimension })),
+          },
         },
-      },
-    });
+      });
+    } catch (error) {
+      // A concurrent invitation won the race: the unique index is the real guard.
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException(YA_ES_JURADO);
+      }
+      throw error;
+    }
     return this.resumen(id, usuario);
   }
 

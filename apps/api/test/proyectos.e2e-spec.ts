@@ -379,6 +379,22 @@ describe('Projects and judges A3 (e2e, test database)', () => {
       expect(del.body.jurados).toHaveLength(1);
     });
 
+    it('answers 201 and 409 (never 500) to two simultaneous invitations of the same user', async () => {
+      const p = await crearProyecto();
+      const juez = await t.usuario('invitado');
+      const invitar = () =>
+        t
+          .http()
+          .post(`/api/proyectos/${p.id}/jurados`)
+          .set(coord.auth)
+          .send({ idUsuario: juez.id });
+      const codigos = (await Promise.all([invitar(), invitar()]))
+        .map((r) => r.status)
+        .sort();
+      expect(codigos).toEqual([201, 409]);
+      expect(await t.prisma.juradoProyecto.count()).toBe(1);
+    });
+
     it('does not find inactive or unknown users', async () => {
       await t
         .http()
