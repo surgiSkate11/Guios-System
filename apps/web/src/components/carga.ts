@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { ApiError } from '../api/client'
 import { errorMessage } from '../pages/auth/form'
 import type { Aviso } from './ui'
 
@@ -9,19 +10,24 @@ export function avisoDeError(error: unknown): Aviso {
 
 /** Loads data once on mount; `actualizar` edits the loaded data after a successful write. */
 export function useCarga<T>(cargar: () => Promise<T>) {
-  const [estado, setEstado] = useState<{ datos: T | null; error: string | null }>({
-    datos: null,
-    error: null,
-  })
+  const [estado, setEstado] = useState<{
+    datos: T | null
+    error: string | null
+    /** HTTP status of the load error, when the API answered one. */
+    status: number | null
+  }>({ datos: null, error: null, status: null })
 
   useEffect(() => {
     let activo = true
     cargar().then(
       (datos) => {
-        if (activo) setEstado({ datos, error: null })
+        if (activo) setEstado({ datos, error: null, status: null })
       },
       (error: unknown) => {
-        if (activo) setEstado({ datos: null, error: errorMessage(error) })
+        if (activo) {
+          const status = error instanceof ApiError ? error.status : null
+          setEstado({ datos: null, error: errorMessage(error), status })
+        }
       },
     )
     return () => {

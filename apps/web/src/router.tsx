@@ -1,7 +1,6 @@
 import {
   BarChart3,
   Bot,
-  ClipboardList,
   GitCompareArrows,
   History,
   Layers,
@@ -11,6 +10,9 @@ import {
 import { Navigate, type RouteObject } from 'react-router'
 import { AuthRoot, PublicOnly, RequireAuth } from './auth/guards'
 import { AppLayout } from './layout/AppLayout'
+import { CalificarPage } from './pages/evaluacion/CalificarPage'
+import { ImportanciaPage } from './pages/evaluacion/ImportanciaPage'
+import { SubfactoresPage } from './pages/evaluacion/SubfactoresPage'
 import { LoginPage } from './pages/auth/LoginPage'
 import { PendingAuthPage } from './pages/auth/PendingAuthPage'
 import { RegistroPage } from './pages/auth/RegistroPage'
@@ -24,12 +26,6 @@ import { PlaceholderPage, type PlaceholderPageProps } from './pages/PlaceholderP
 
 /** Screens of the authenticated area; each one becomes a real module later. */
 const SCREENS: Record<string, PlaceholderPageProps> = {
-  calificar: {
-    title: 'Calificar factores',
-    subtitle: 'Importancia de factores y calificación de subfactores',
-    icon: ClipboardList,
-    covers: 'RF-04, RF-08, HU-02, HU-05',
-  },
   consolidacion: {
     title: 'Consolidación y alcance',
     subtitle: 'Importancia relativa, relevancia y alcance de los factores',
@@ -109,15 +105,15 @@ const appRoutes: RouteObject[] = [
       { index: true, element: <Navigate to="/inicio" replace /> },
       { path: 'inicio', element: <InicioPage /> },
       { path: 'evaluaciones', element: <EvaluacionesPage /> },
-      { path: 'evaluaciones/calificar', element: screen('calificar') },
+      { path: 'evaluaciones/calificar', element: <CalificarPage /> },
       { path: 'evaluaciones/consolidacion', element: screen('consolidacion') },
       { path: 'evaluaciones/comparacion', element: screen('comparacion') },
       { path: 'evaluaciones/analisis', element: screen('analisis') },
       { path: 'evaluaciones/auditoria', element: screen('auditoria') },
       { path: 'proyectos/nuevo', element: <NuevoProyectoPage /> },
       { path: 'proyectos/:id', element: <ProyectoDetallePage /> },
-      { path: 'proyectos/:id/importancia', element: screen('calificar') },
-      { path: 'proyectos/:id/subfactores', element: screen('calificar') },
+      { path: 'proyectos/:id/importancia', element: <ImportanciaPage /> },
+      { path: 'proyectos/:id/subfactores', element: <SubfactoresPage /> },
       { path: 'proyectos/:id/resultado', element: screen('resultado') },
       { path: 'proyectos/:id/consolidacion', element: screen('consolidacion') },
       { path: 'proyectos/:id/comparacion', element: screen('comparacion') },
