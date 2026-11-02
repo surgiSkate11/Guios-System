@@ -1,7 +1,6 @@
 import {
   Bot,
   History,
-  ListChecks,
 } from 'lucide-react'
 import { Navigate, type RouteObject } from 'react-router'
 import { AuthRoot, PublicOnly, RequireAuth } from './auth/guards'
@@ -10,6 +9,7 @@ import { ConsolidacionPage, ConsolidacionSelectorPage } from './pages/consolidac
 import { AuditoriaPage, AuditoriaSelectorPage } from './pages/resultados/AuditoriaPage'
 import { ComparacionPage, ComparacionSelectorPage } from './pages/resultados/ComparacionPage'
 import { ResultadoPage } from './pages/resultados/ResultadoPage'
+import { CatalogoPage } from './pages/catalogo/CatalogoPage'
 import { CalificarPage } from './pages/evaluacion/CalificarPage'
 import { ImportanciaPage } from './pages/evaluacion/ImportanciaPage'
 import { SubfactoresPage } from './pages/evaluacion/SubfactoresPage'
@@ -37,12 +37,6 @@ const SCREENS: Record<string, PlaceholderPageProps> = {
     subtitle: 'Proyectos anteriores y versión del catálogo utilizada',
     icon: History,
     covers: 'RF-17, HU-11',
-  },
-  catalogo: {
-    title: 'Catálogo de factores',
-    subtitle: 'Factores, subfactores y versiones del catálogo',
-    icon: ListChecks,
-    covers: 'RF-18, RF-22 a RF-24, HU-12, HU-21 a HU-24',
   },
 }
 
@@ -97,7 +91,7 @@ const appRoutes: RouteObject[] = [
       { path: 'proyectos/:id/auditoria', element: <AuditoriaPage /> },
       { path: 'historial', element: screen('historial') },
       { path: 'jurados', element: <JuradosPage /> },
-      { path: 'admin/catalogo', element: screen('catalogo') },
+      { path: 'admin/catalogo', element: <CatalogoPage /> },
       { path: 'admin/configuracion', element: <ConfiguracionPage /> },
     ],
   },
