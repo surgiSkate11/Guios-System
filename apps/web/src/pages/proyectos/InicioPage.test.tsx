@@ -29,6 +29,21 @@ function valorDe(nombre: string) {
 }
 
 describe('InicioPage', () => {
+  it('shows the requests error and keeps the rest of the panel usable', async () => {
+    const user = userEvent.setup()
+    const { handler } = proyectosApi(PROYECTOS, COORDINADOR)
+    const { router } = renderRoute('/inicio', {
+      usuario: COORDINADOR,
+      api: conError(handler, (method, path) => method === 'GET' && path === '/api/solicitudes', 500, 'Error interno del servidor'),
+    })
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Error interno del servidor')
+    expect(screen.queryByText('No tienes solicitudes pendientes')).not.toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'Proyectos en curso' })).toHaveTextContent('1')
+    await user.click(await screen.findByRole('link', { name: 'Sistema de inventario' }))
+    expect(router.state.location.pathname).toBe('/proyectos/10')
+  })
+
   it('summarizes the coordinator projects with counters and a recent projects table', async () => {
     const { handler } = proyectosApi(PROYECTOS, COORDINADOR)
     renderRoute('/inicio', { usuario: COORDINADOR, api: handler })
