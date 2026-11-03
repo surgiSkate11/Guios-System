@@ -1,6 +1,5 @@
 import {
   Bot,
-  History,
 } from 'lucide-react'
 import { Navigate, type RouteObject } from 'react-router'
 import { AuthRoot, PublicOnly, RequireAuth } from './auth/guards'
@@ -10,11 +9,13 @@ import { AuditoriaPage, AuditoriaSelectorPage } from './pages/resultados/Auditor
 import { ComparacionPage, ComparacionSelectorPage } from './pages/resultados/ComparacionPage'
 import { ResultadoPage } from './pages/resultados/ResultadoPage'
 import { CatalogoPage } from './pages/catalogo/CatalogoPage'
+import { HistorialPage } from './pages/proyectos/HistorialPage'
 import { CalificarPage } from './pages/evaluacion/CalificarPage'
 import { ImportanciaPage } from './pages/evaluacion/ImportanciaPage'
 import { SubfactoresPage } from './pages/evaluacion/SubfactoresPage'
 import { LoginPage } from './pages/auth/LoginPage'
-import { PendingAuthPage } from './pages/auth/PendingAuthPage'
+import { RecuperarPage } from './pages/auth/RecuperarPage'
+import { RestablecerPage } from './pages/auth/RestablecerPage'
 import { RegistroPage } from './pages/auth/RegistroPage'
 import { ConfiguracionPage } from './pages/configuracion/ConfiguracionPage'
 import { EvaluacionesPage } from './pages/proyectos/EvaluacionesPage'
@@ -31,12 +32,6 @@ const SCREENS: Record<string, PlaceholderPageProps> = {
     subtitle: 'Análisis en texto asistido por inteligencia artificial',
     icon: Bot,
     covers: 'RF-16, HU-09',
-  },
-  historial: {
-    title: 'Historial',
-    subtitle: 'Proyectos anteriores y versión del catálogo utilizada',
-    icon: History,
-    covers: 'RF-17, HU-11',
   },
 }
 
@@ -63,8 +58,9 @@ const appRoutes: RouteObject[] = [
   },
   {
     path: '/recuperar',
-    element: <PendingAuthPage title="Recuperar contraseña" covers="RF-25" />,
+    element: <RecuperarPage />,
   },
+  { path: '/restablecer', element: <RestablecerPage /> },
   {
     element: (
       <RequireAuth>
@@ -89,7 +85,7 @@ const appRoutes: RouteObject[] = [
       { path: 'proyectos/:id/comparacion', element: <ComparacionPage /> },
       { path: 'proyectos/:id/analisis', element: screen('analisis') },
       { path: 'proyectos/:id/auditoria', element: <AuditoriaPage /> },
-      { path: 'historial', element: screen('historial') },
+      { path: 'historial', element: <HistorialPage /> },
       { path: 'jurados', element: <JuradosPage /> },
       { path: 'admin/catalogo', element: <CatalogoPage /> },
       { path: 'admin/configuracion', element: <ConfiguracionPage /> },

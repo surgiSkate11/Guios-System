@@ -164,3 +164,7 @@ export function actualizarProyecto(
 ): Promise<ProyectoResumen> {
   return apiFetch<ProyectoResumen>(`/proyectos/${id}`, { method: 'PATCH', body, token: leerToken() })
 }
+
+export function listarProyectosCerrados(): Promise<ProyectoResumen[]> {
+  return apiFetch<ProyectoResumen[]>('/proyectos?estado=cerrado', { token: leerToken() })
+}
