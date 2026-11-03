@@ -28,6 +28,8 @@ export const INVITADO: Usuario = {
 export interface FakeRequest {
   method: string
   path: string
+  /** Query string with its leading "?", or an empty string. */
+  search: string
   headers: Record<string, string>
   body: unknown
 }
@@ -50,6 +52,7 @@ export function installFakeApi(handler: FakeHandler) {
     const request: FakeRequest = {
       method: (init.method ?? 'GET').toUpperCase(),
       path: url.pathname,
+      search: url.search,
       headers: Object.fromEntries(new Headers(init.headers).entries()),
       body: typeof init.body === 'string' ? JSON.parse(init.body) : undefined,
     }

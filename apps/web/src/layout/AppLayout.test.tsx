@@ -3,9 +3,13 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import { TOKEN_KEY } from '../auth/session'
 import { ADMINISTRADOR, COORDINADOR, INVITADO, sessionHandler } from '../test/fake-api'
+import { proyecto, proyectoComoJurado, proyectosApi } from '../test/proyectos-api'
 import { renderRoute } from '../test/render-route'
 
 const COORDINADOR_TOP_LEVEL = ['Inicio', 'Historial', 'Jurados']
+
+/** Coordinator who also judges their project: the menu then offers every project screen. */
+const conProyecto = () => proyectosApi([proyecto({ miEstadoJurado: 'activo' })], COORDINADOR).handler
 const ADMINISTRADOR_TOP_LEVEL = ['Inicio', 'Catálogo de factores', 'Configuración']
 
 const EVALUACIONES_CHILDREN = [
@@ -33,10 +37,10 @@ describe('AppLayout', () => {
   })
 
   it('shows every coordinator sidebar section of the prototype', async () => {
-    renderRoute('/inicio', { usuario: COORDINADOR })
+    renderRoute('/inicio', { usuario: COORDINADOR, api: conProyecto() })
     const nav = await findNav()
     for (const label of COORDINADOR_TOP_LEVEL) {
-      expect(within(nav).getByRole('link', { name: label })).toBeInTheDocument()
+      expect(await within(nav).findByRole('link', { name: label })).toBeInTheDocument()
     }
     expect(within(nav).getByRole('button', { name: 'Evaluaciones' })).toBeInTheDocument()
     expect(within(nav).queryByRole('link', { name: 'Catálogo de factores' })).not.toBeInTheDocument()
@@ -54,18 +58,49 @@ describe('AppLayout', () => {
     expect(within(nav).queryByRole('link', { name: 'Jurados' })).not.toBeInTheDocument()
   })
 
-  it('shows the guest only the home link (HU-18)', async () => {
-    renderRoute('/inicio', { usuario: INVITADO })
+  it('shows a user without projects only Inicio and Mis evaluaciones (HU-18)', async () => {
+    const user = userEvent.setup()
+    renderRoute('/inicio', { usuario: INVITADO, api: proyectosApi([], INVITADO).handler })
     const nav = await findNav()
     expect(within(nav).getAllByRole('link').map((link) => link.textContent)).toEqual(['Inicio'])
-    expect(within(nav).queryByRole('button', { name: 'Evaluaciones' })).not.toBeInTheDocument()
+    await user.click(within(nav).getByRole('button', { name: 'Evaluaciones' }))
+    expect(within(nav).getAllByRole('link').map((link) => link.textContent)).toEqual([
+      'Inicio',
+      'Mis evaluaciones',
+    ])
+  })
+
+  it('shows Calificar factores to a user that is an active judge of a project', async () => {
+    const user = userEvent.setup()
+    const { handler } = proyectosApi([proyectoComoJurado('activo')], INVITADO)
+    renderRoute('/inicio', { usuario: INVITADO, api: handler })
+    const nav = await findNav()
+    await user.click(within(nav).getByRole('button', { name: 'Evaluaciones' }))
+    expect(await within(nav).findByRole('link', { name: 'Calificar factores' })).toBeInTheDocument()
+    expect(within(nav).queryByRole('link', { name: 'Consolidación y alcance' })).not.toBeInTheDocument()
+  })
+
+  it('hides the coordinator project screens while the coordinator has no project', async () => {
+    const user = userEvent.setup()
+    renderRoute('/inicio', { usuario: COORDINADOR, api: proyectosApi([], COORDINADOR).handler })
+    const nav = await findNav()
+    await user.click(within(nav).getByRole('button', { name: 'Evaluaciones' }))
+    expect(within(nav).getByRole('link', { name: 'Nuevo proyecto' })).toBeInTheDocument()
+    expect(within(nav).queryByRole('link', { name: 'Consolidación y alcance' })).not.toBeInTheDocument()
+    expect(within(nav).queryByRole('link', { name: 'Jurados' })).not.toBeInTheDocument()
+  })
+
+  it('does not ask the API for projects when the user is an administrator', async () => {
+    const { requests } = renderRoute('/inicio', { usuario: ADMINISTRADOR })
+    await findNav()
+    expect(requests.filter((request) => /proyectos|solicitudes/.test(request.path))).toEqual([])
   })
 
   it('expands the Evaluaciones group and marks the active child', async () => {
-    renderRoute('/evaluaciones', { usuario: COORDINADOR })
+    renderRoute('/evaluaciones', { usuario: COORDINADOR, api: conProyecto() })
     const nav = await findNav()
     for (const label of EVALUACIONES_CHILDREN) {
-      expect(within(nav).getByRole('link', { name: label })).toBeInTheDocument()
+      expect(await within(nav).findByRole('link', { name: label })).toBeInTheDocument()
     }
     expect(within(nav).getByRole('link', { name: 'Mis evaluaciones' })).toHaveAttribute(
       'aria-current',
@@ -90,7 +125,7 @@ describe('AppLayout', () => {
   it('navigates to a section from the sidebar', async () => {
     const user = userEvent.setup()
     const { router } = renderRoute('/inicio', { usuario: ADMINISTRADOR })
-    await user.click(await screen.findByRole('link', { name: 'Configuración' }))
+    await user.click(within(await findNav()).getByRole('link', { name: 'Configuración' }))
     expect(router.state.location.pathname).toBe('/admin/configuracion')
     expect(screen.getByRole('heading', { level: 1, name: 'Configuración' })).toBeInTheDocument()
   })
@@ -119,7 +154,7 @@ describe('routes', () => {
   })
 
   it.each([
-    ['/proyectos/nuevo', 'Nuevo proyecto', COORDINADOR],
+    ['/proyectos/nuevo', 'Nuevo proyecto de evaluación', COORDINADOR],
     ['/historial', 'Historial', COORDINADOR],
     ['/jurados', 'Jurados', COORDINADOR],
     ['/admin/catalogo', 'Catálogo de factores', ADMINISTRADOR],
@@ -156,6 +191,10 @@ describe('routes', () => {
     ['/proyectos/7/comparacion', INVITADO],
     ['/admin/configuracion', COORDINADOR],
     ['/proyectos/nuevo', ADMINISTRADOR],
+    ['/jurados', INVITADO],
+    ['/evaluaciones/consolidacion', INVITADO],
+    ['/evaluaciones', ADMINISTRADOR],
+    ['/proyectos/7', ADMINISTRADOR],
   ])('redirects %s to /inicio when the role cannot open it', async (path, usuario) => {
     const { router } = renderRoute(path, { usuario })
     expect(await screen.findByRole('heading', { level: 1, name: 'Inicio' })).toBeInTheDocument()

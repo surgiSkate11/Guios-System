@@ -4,12 +4,18 @@
   "testEnvironment": "node",
   "testRegex": ".e2e-spec.ts$",
   "transform": {
-    "^.+\\.(t|j)s$": "ts-jest"
+    "^.+.(t|j)s$": [
+      "ts-jest",
+      {
+        "tsconfig": "<rootDir>/../tsconfig.jest.json"
+      }
+    ]
   },
   "globalSetup": "<rootDir>/global-setup.ts",
   "setupFiles": ["<rootDir>/setup-env.ts"],
   "maxWorkers": 1,
   "moduleNameMapper": {
-    "^(\\.{1,2}/.*)\\.js$": "$1"
+    "^(\\.{1,2}/.*)\\.js$": "$1",
+    "^@guios/calculo$": "<rootDir>/../../../packages/calculo/src/index.ts"
   }
 }

@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { NavLink, useLocation } from 'react-router'
 import { useAuth } from '../auth/auth-context'
 import { Brand } from '../components/Brand'
+import { useProyectos } from '../proyectos/proyectos-context'
 import { navigationFor, isNavGroup, type NavGroupItem, type NavLinkItem } from '../navigation'
 
 const itemBase =
@@ -80,7 +81,8 @@ function SidebarGroup({ item }: { item: NavGroupItem }) {
 
 export function Sidebar() {
   const { usuario } = useAuth()
-  const items = usuario ? navigationFor(usuario.rol) : []
+  const { proyectos } = useProyectos()
+  const items = usuario ? navigationFor(usuario.rol, proyectos) : []
   return (
     <aside className="flex w-64 shrink-0 flex-col border-r border-slate-200 bg-white px-5 py-5">
       <Brand />
