@@ -153,3 +153,63 @@ interface ResultadoProyecto {
 Ranking: by final metric descending; ties keep software id order. "Evaluated" (RF-13): every
 active judge assigned to the factor's dimension answered every active subfactor of that factor
 (value or Desconozco) for that software; `faltantes` counts incomplete (software, factor) pairs.
+
+## A7. Password recovery (public, RF-25)
+
+| Method and path | Body | Response |
+| --- | --- | --- |
+| `POST /api/auth/recuperar` | `{ email }` | `204` always (never reveals whether the email exists) |
+| `POST /api/auth/restablecer` | `{ token, password }` (8-128 chars) | `204`; `400 "El enlace no es válido o venció"` |
+
+The emailed link is `${WEB_URL}/restablecer?token=<token>`; tokens last 30 minutes and work once.
+Login and sign-up answer `429` after too many attempts (rate limit).
+
+## A8. PDF export (project coordinator, RF-19)
+
+`GET /api/proyectos/:id/resultados/pdf` → `application/pdf` built from the last stored result;
+`404 "Aún no hay resultados"`.
+
+## A9. AI analysis (RF-16)
+
+```ts
+interface Analisis { id: number; texto: string; modelo: string; estado: 'completado' | 'fallido';
+  respaldo: boolean; creadoEn: string }   // respaldo = fallback text was used
+```
+
+| Method and path | Who | Response |
+| --- | --- | --- |
+| `POST /api/proyectos/:id/analisis` | coordinator | `201 Analisis` from the last stored result (`404` without results). Never fails because of the AI: falls back to a template text (RNF-06) |
+| `GET /api/proyectos/:id/analisis` | access | last `Analisis`; `404 "Aún no hay análisis"` |
+
+## A10. Catalog administration (role `administrador`, RF-18, RF-22, RF-24)
+
+```ts
+interface Estimacion {
+  id: number; estado: 'en_curso' | 'propuesta' | 'aprobada' | 'rechazada'; modo: 'manual' | 'ia';
+  factor: { id: number; nombre: string; idDimension: number; alcanceDefault: Alcance };
+  subfactores: { id: number; texto: string; citas: number; dois: string[] }[];
+  cortes: { rq1: number; rq2: number; rq3: number };          // anchors of the current version
+  tc: number | null; ns: number; r: number | null; il: number | null; isPropuesta: number | null;
+  isAprobada: number | null; resultadoSensible: boolean; sinEvidencia: boolean;
+  sinRespaldoVerificable: boolean;                             // some cited subfactor has no DOI
+  progreso: { hechos: number; total: number } | null;          // AI mode while en_curso
+  error: string | null; justificacion: string | null; creadoEn: string;
+}
+```
+
+| Method and path | Body | Response |
+| --- | --- | --- |
+| `POST /api/catalogo/factores` | `{ idDimension, nombre, alcanceDefault, subfactores: { texto, citas: int ≥ 0, dois?: string[] }[] (≥1) }` | `201 Estimacion` (`modo: 'manual'`, `estado: 'propuesta'`); the factor is created inactive with `origen: lit_2020_2025` |
+| `POST /api/catalogo/factores/:id/estimaciones` | — | `202 Estimacion` (`modo: 'ia'`, `estado: 'en_curso'`); poll it. Without AI configured: `409 "La estimación con IA no está configurada"` |
+| `GET /api/catalogo/estimaciones/:id` | — | `Estimacion` |
+| `GET /api/catalogo/estimaciones?estado=` | — | `Estimacion[]`, newest first |
+| `POST /api/catalogo/estimaciones/:id/aprobar` | `{ citas?: { idSubfactor, citas }[], isAprobada?: 1-4, justificacion? }` | `Estimacion` approved; activates the factor with the IS and publishes a new catalog version. `isAprobada` different from the computed IS requires `justificacion` (`400`) |
+| `POST /api/catalogo/estimaciones/:id/rechazar` | `{ justificacion }` | `Estimacion` rejected (the factor stays inactive) |
+| `PATCH /api/catalogo/factores/:id` | `{ nombre?, alcanceDefault?, activo? }` | factor of `GET /catalogo/vigente` shape |
+| `POST /api/catalogo/factores/:id/subfactores` | `{ texto }` | `201` subfactor `{ id, texto, activo }` |
+| `PATCH /api/catalogo/subfactores/:id` | `{ texto?, activo? }` | subfactor |
+| `GET /api/catalogo/factores` | — | every factor (active and inactive) with its subfactors (active and inactive) |
+
+Only a `propuesta` can be approved or rejected (`409`). The IS is always computed by the server with
+`@guios/calculo` (RN-01, RN-02, RN-04); the AI only finds and classifies articles (RNF-11).
+Existing projects keep their IS snapshot (HU-24).
