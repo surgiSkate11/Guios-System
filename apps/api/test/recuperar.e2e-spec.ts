@@ -67,6 +67,33 @@ describe('Password recovery and security hardening (e2e, test database)', () => 
     expect(usado.body.message).toBe('El enlace no es válido o venció');
   });
 
+  it('a reset invalidates every other pending link of the user', async () => {
+    await crear();
+    await t
+      .http()
+      .post('/api/auth/recuperar')
+      .send({ email: 'ana@org.com' })
+      .expect(204);
+    const primero = tokenDelCorreo();
+    await t
+      .http()
+      .post('/api/auth/recuperar')
+      .send({ email: 'ana@org.com' })
+      .expect(204);
+    const segundo = tokenDelCorreo();
+    await t
+      .http()
+      .post('/api/auth/restablecer')
+      .send({ token: segundo, password: 'clave-nueva-1' })
+      .expect(204);
+    await t
+      .http()
+      .post('/api/auth/restablecer')
+      .send({ token: primero, password: 'otra-clave-1' })
+      .expect(400);
+    await login('ana@org.com', 'clave-nueva-1').expect(200);
+  });
+
   it('answers 204 for an unknown or inactive email without creating a token', async () => {
     await t.prisma.usuario.update({
       where: { id: (await crear('baja@org.com')).id },

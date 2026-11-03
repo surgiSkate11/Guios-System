@@ -25,3 +25,4 @@ Terminar la mayor parte del sistema para que el equipo solo haga tareas sencilla
 
 - L1 (usuario): ver S1. Commits con `--no-verify` (salta los hooks); las pruebas se siguen corriendo antes de cada commit.
 - L2 (decisión): proveedor de IA detrás de una interfaz; implementación con la API de Anthropic configurada por `.env` (`IA_API_KEY`, `IA_MODELO`). Sin clave, análisis usa texto de respaldo y la estimación con IA responde 409. Servicio bibliográfico: OpenAlex.
+- L3 (revisión): revisión nativa de B1 (64bcd22) aprobada; se corrigió que restablecer invalide los demás enlaces pendientes (revisión aprobada sin hallazgos). Deuda anotada, no bloqueante: el límite de intentos es por IP (puede afectar a usuarios detrás de la misma red), sin SMTP el enlace se imprime en la consola (solo desarrollo), un JWT emitido antes del cambio de contraseña sigue vigente hasta vencer (8 h) y el tiempo de respuesta de /recuperar difiere si el correo existe.

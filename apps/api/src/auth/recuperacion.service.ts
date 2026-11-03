@@ -64,6 +64,11 @@ export class RecuperacionService {
         data: { usado: true },
       });
       if (count === 0) throw new BadRequestException(ENLACE_INVALIDO);
+      // Any other pending link of the user stops working once the password changes.
+      await tx.tokenRecuperacion.updateMany({
+        where: { idUsuario: fila.idUsuario, usado: false },
+        data: { usado: true },
+      });
       await tx.usuario.update({
         where: { id: fila.idUsuario },
         data: { passwordHash: await hashPassword(password) },
