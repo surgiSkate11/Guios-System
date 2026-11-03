@@ -197,6 +197,8 @@ interface Estimacion {
 }
 ```
 
+`FactorAdmin` = `{ id, nombre, idDimension, dimension: { id, nombre }, sugeridaDefault, alcanceDefault, origen, isOrigen, validadoExpertos, activo, subfactores: { id, texto, activo }[] }`.
+
 | Method and path | Body | Response |
 | --- | --- | --- |
 | `POST /api/catalogo/factores` | `{ idDimension, nombre, alcanceDefault, subfactores: { texto, citas: int ≥ 0, dois?: string[] }[] (≥1) }` | `201 Estimacion` (`modo: 'manual'`, `estado: 'propuesta'`); the factor is created inactive with `origen: lit_2020_2025` |
@@ -205,10 +207,10 @@ interface Estimacion {
 | `GET /api/catalogo/estimaciones?estado=` | — | `Estimacion[]`, newest first |
 | `POST /api/catalogo/estimaciones/:id/aprobar` | `{ citas?: { idSubfactor, citas }[], isAprobada?: 1-4, justificacion? }` | `Estimacion` approved; activates the factor with the IS and publishes a new catalog version. `isAprobada` different from the computed IS requires `justificacion` (`400`) |
 | `POST /api/catalogo/estimaciones/:id/rechazar` | `{ justificacion }` | `Estimacion` rejected (the factor stays inactive) |
-| `PATCH /api/catalogo/factores/:id` | `{ nombre?, alcanceDefault?, activo? }` | factor of `GET /catalogo/vigente` shape |
+| `PATCH /api/catalogo/factores/:id` | `{ nombre?, alcanceDefault?, activo? }` | `FactorAdmin` |
 | `POST /api/catalogo/factores/:id/subfactores` | `{ texto }` | `201` subfactor `{ id, texto, activo }` |
 | `PATCH /api/catalogo/subfactores/:id` | `{ texto?, activo? }` | subfactor |
-| `GET /api/catalogo/factores` | — | every factor (active and inactive) with its subfactors (active and inactive) |
+| `GET /api/catalogo/factores` | — | `FactorAdmin[]` (active and inactive, by id) |
 
 Only a `propuesta` can be approved or rejected (`409`). The IS is always computed by the server with
 `@guios/calculo` (RN-01, RN-02, RN-04); the AI only finds and classifies articles (RNF-11).
