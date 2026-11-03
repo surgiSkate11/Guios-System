@@ -14,6 +14,7 @@ organization's requirement, with one or more judges. Full specification:
 | `apps/web` | `@guios/web`: React + Vite + Tailwind frontend |
 | `doc/` | Requirements specification and prototype screens |
 | `odd/tasks/` | Feature tracking documents |
+| `docs/EQUIPO.md` | Remaining tasks split per team member |
 
 ## Requirements
 
