@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AdministracionModule } from './administracion.module';
 import { AuthModule } from './auth/auth.module';
-import { CatalogoController } from './catalogo/catalogo.controller';
+import { CatalogoModule } from './catalogo/catalogo.module';
 import { EvaluacionModule } from './evaluacion/evaluacion.module';
 import { IaModule } from './ia/ia.module';
 import { ReportesModule } from './reportes/reportes.module';
@@ -25,7 +25,7 @@ import { ProyectosModule } from './proyectos/proyectos.module';
     EvaluacionModule,
     ResultadosModule,
     ReportesModule,
+    CatalogoModule,
   ],
-  controllers: [CatalogoController],
 })
 export class AppModule {}
