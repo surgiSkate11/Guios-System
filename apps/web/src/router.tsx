@@ -6,6 +6,8 @@ import { AuditoriaPage, AuditoriaSelectorPage } from './pages/resultados/Auditor
 import { ComparacionPage, ComparacionSelectorPage } from './pages/resultados/ComparacionPage'
 import { ResultadoPage } from './pages/resultados/ResultadoPage'
 import { CatalogoPage } from './pages/catalogo/CatalogoPage'
+import { EstimacionPage } from './pages/catalogo/EstimacionPage'
+import { NuevoFactorPage } from './pages/catalogo/NuevoFactorPage'
 import { HistorialPage } from './pages/proyectos/HistorialPage'
 import { AnalisisPage, AnalisisSelectorPage } from './pages/resultados/AnalisisPage'
 import { CalificarPage } from './pages/evaluacion/CalificarPage'
@@ -71,6 +73,8 @@ const appRoutes: RouteObject[] = [
       { path: 'historial', element: <HistorialPage /> },
       { path: 'jurados', element: <JuradosPage /> },
       { path: 'admin/catalogo', element: <CatalogoPage /> },
+      { path: 'admin/catalogo/factores/nuevo', element: <NuevoFactorPage /> },
+      { path: 'admin/catalogo/estimaciones/:id', element: <EstimacionPage /> },
       { path: 'admin/configuracion', element: <ConfiguracionPage /> },
     ],
   },

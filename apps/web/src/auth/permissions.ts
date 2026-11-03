@@ -37,7 +37,13 @@ const SOLO_COORDINADOR = [
 export const RUTAS_POR_ROL: Readonly<Record<Rol, readonly string[]>> = {
   invitado: NO_ADMINISTRADOR,
   coordinador: [...NO_ADMINISTRADOR, ...SOLO_COORDINADOR],
-  administrador: ['/inicio', '/admin/catalogo', '/admin/configuracion'],
+  administrador: [
+    '/inicio',
+    '/admin/catalogo',
+    '/admin/catalogo/factores/nuevo',
+    '/admin/catalogo/estimaciones/:id',
+    '/admin/configuracion',
+  ],
 }
 
 /** Whether the role may open the given path of the authenticated area. */

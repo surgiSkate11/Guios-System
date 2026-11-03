@@ -1,6 +1,8 @@
-import { ChevronDown, ChevronRight, ListChecks } from 'lucide-react'
-import { useState } from 'react'
+import { ChevronDown, ChevronRight, ListChecks, Plus } from 'lucide-react'
+import { useCallback, useState } from 'react'
+import { Link } from 'react-router'
 import {
+  listarEstimaciones,
   listarVersionesCatalogo,
   obtenerCatalogo,
   type CatalogoVigente,
@@ -12,6 +14,8 @@ import { PageHeader } from '../../components/PageHeader'
 import { EstadoCarga } from '../../components/ui'
 import { ESTILO_IMPORTANCIA, ETIQUETA_IMPORTANCIA } from '../evaluacion/escalas'
 import { formatearFecha } from '../proyectos/formato'
+import { AdministrarFactores } from './AdministrarFactores'
+import { ETIQUETA_ESTADO_ESTIMACION } from './formato'
 
 const ETIQUETA_ORIGEN: Record<OrigenFactor, string> = { tesis: 'tesis', lit_2020_2025: 'lit 2020-2025' }
 const ETIQUETA_ALCANCE = { interno: 'Interno', externo: 'Externo' } as const
@@ -142,9 +146,52 @@ function Versiones() {
   )
 }
 
-/** Read-only factor catalog (RF-18): current version, its factors and subfactors, versions. */
+/** Estimations still waiting for a decision (AI in progress or proposals). */
+function EstimacionesPendientes() {
+  const { datos, cargando, error } = useCarga(listarEstimaciones)
+  const pendientes = (datos ?? []).filter((item) => item.estado === 'en_curso' || item.estado === 'propuesta')
+  return (
+    <section aria-labelledby="estimaciones-pendientes" className="mb-5 rounded-2xl bg-white p-5">
+      <h2 id="estimaciones-pendientes" className="mb-3 font-semibold text-slate-900">
+        Estimaciones pendientes
+      </h2>
+      {!datos ? (
+        <EstadoCarga cargando={cargando} error={error} />
+      ) : pendientes.length === 0 ? (
+        <p className="text-sm text-slate-500">No hay estimaciones pendientes.</p>
+      ) : (
+        <ul className="space-y-2">
+          {pendientes.map((estimacion) => (
+            <li key={estimacion.id}>
+              <Link
+                to={`/admin/catalogo/estimaciones/${estimacion.id}`}
+                className="flex items-center justify-between rounded-xl bg-amber-50 px-4 py-3 text-sm hover:bg-amber-100"
+              >
+                <span className="font-semibold text-slate-900">{estimacion.factor.nombre}</span>
+                <span className="text-slate-600">
+                  {`${ETIQUETA_ESTADO_ESTIMACION[estimacion.estado]} · ${estimacion.modo}`}
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  )
+}
+
+/**
+ * Factor catalog (RF-18): current version with its factors and subfactors, pending IS
+ * estimations, administration of every factor, and the catalog versions.
+ */
 export function CatalogoPage() {
-  const { datos, cargando, error } = useCarga(obtenerCatalogo)
+  const [version, setVersion] = useState(0)
+  // A new `version` gives a new loader, so the current catalog reloads after a change.
+  const cargar = useCallback(() => {
+    void version
+    return obtenerCatalogo()
+  }, [version])
+  const { datos, cargando, error } = useCarga(cargar)
 
   return (
     <div>
@@ -154,9 +201,18 @@ export function CatalogoPage() {
         icon={ListChecks}
         actions={
           datos && (
-            <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
-              Versión de catálogo {datos.version.numero}
-            </span>
+            <div className="flex items-center gap-3">
+              <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
+                Versión de catálogo {datos.version.numero}
+              </span>
+              <Link
+                to="/admin/catalogo/factores/nuevo"
+                className="inline-flex items-center gap-1 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700"
+              >
+                <Plus aria-hidden className="size-4" />
+                Nuevo factor
+              </Link>
+            </div>
           )
         }
       />
@@ -168,11 +224,13 @@ export function CatalogoPage() {
             Cortes: rq1 {datos.version.rq1.toFixed(2)} · rq2 {datos.version.rq2.toFixed(2)} · rq3{' '}
             {datos.version.rq3.toFixed(2)}
           </p>
+          <EstimacionesPendientes />
           <section className="mb-5 rounded-2xl bg-white p-5">
             {datos.dimensiones.map((dimension, indice) => (
               <Dimension key={dimension.id} dimension={dimension} inicialAbierta={indice === 0} />
             ))}
           </section>
+          <AdministrarFactores onCambio={() => setVersion((valor) => valor + 1)} />
           <section className="rounded-2xl bg-white p-5">
             <h2 className="mb-4 font-semibold text-slate-900">Versiones del catálogo</h2>
             <Versiones />
