@@ -166,8 +166,8 @@ export class CatalogoAdminService {
       const citas: CitasSubfactor[] = factor.subfactores.map((s, i) => ({
         idSubfactor: s.id,
         texto: s.texto,
-        citas: borrador[i]!.citas,
-        dois: borrador[i]!.dois,
+        citas: borrador[i].citas,
+        dois: borrador[i].dois,
       }));
       return tx.estimacionIs.create({
         data: {

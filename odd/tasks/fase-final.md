@@ -12,14 +12,14 @@ Terminar la mayor parte del sistema para que el equipo solo haga tareas sencilla
 
 | ID | Tarea | Ruta | Estado | Commit |
 | --- | --- | --- | --- | --- |
-| B1 | API: recuperar contraseña + límite de intentos + deuda de seguridad | sesión 1 | pendiente | |
-| B2 | API: PDF del resultado | sesión 1 | pendiente | |
-| B3 | API: análisis con IA y texto de respaldo | sesión 1 | pendiente | |
-| B4 | API: administración del catálogo e IS manual | sesión 1 | pendiente | |
-| B5 | API: estimación de IS con IA (OpenAlex + LLM) | sesión 1 | pendiente | |
-| V1 | Web: recuperar y restablecer contraseña, historial | sesión 2 | pendiente | |
-| V2 | Web: botón PDF y pantalla de análisis con IA | sesión 2 | pendiente | |
-| V3 | Web: administración del catálogo con IS en tiempo real | sesión 2 | pendiente | |
+| B1 | API: recuperar contraseña + límite de intentos + deuda de seguridad | sesión 1 | hecha | 64bcd22 |
+| B2 | API: PDF del resultado | sesión 1 | hecha | 63c5f56 |
+| B3 | API: análisis con IA y texto de respaldo | sesión 1 | hecha | 63c5f56 |
+| B4 | API: administración del catálogo e IS manual | sesión 1 | hecha | 57f901e |
+| B5 | API: estimación de IS con IA (OpenAlex + LLM) | sesión 1 | hecha | ver git log |
+| V1 | Web: recuperar y restablecer contraseña, historial | sesión 2 | hecha | e88fee7 |
+| V2 | Web: botón PDF y pantalla de análisis con IA | sesión 2 | hecha | bbfde37 |
+| V3 | Web: administración del catálogo con IS en tiempo real | sesión 2 | hecha | dfe4bc8 |
 
 ## Log
 

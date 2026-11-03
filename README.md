@@ -53,6 +53,12 @@ organization's requirement, with one or more judges. Full specification:
 | `JWT_SECRET` | yes | — | Signing key for access tokens, at least 32 characters. Generate one with `node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"` |
 | `ADMIN_EMAIL` | for the seed | — | Email of the default administrator (RF-01) |
 | `ADMIN_PASSWORD` | for the seed | — | Initial password of the default administrator |
+| `WEB_URL` | no | `http://localhost:5173` | Public web URL used in password-recovery links |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | no | — | Outgoing email. Without `SMTP_HOST` emails are printed in the API console |
+| `IA_API_KEY` | no | — | Anthropic API key for the AI analysis and the AI IS estimation. Without it the analysis uses the fallback text and the AI estimation answers 409 |
+| `IA_MODELO` | no | `claude-haiku-5-5` | AI model id |
+| `OPENALEX_MAILTO` | no | — | Contact email sent to OpenAlex (polite pool) |
+| `AUTH_RATE_LIMIT` | no | `10` | Max login, sign-up and recovery requests per minute per client |
 
 ## Commands
 
