@@ -9,5 +9,6 @@ import { ResultadosService } from './resultados.service';
   imports: [ProyectosModule, AdministracionModule],
   controllers: [ResultadosController],
   providers: [ResultadosService],
+  exports: [ResultadosService],
 })
 export class ResultadosModule {}

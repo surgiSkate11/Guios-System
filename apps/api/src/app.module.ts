@@ -4,6 +4,8 @@ import { AdministracionModule } from './administracion.module';
 import { AuthModule } from './auth/auth.module';
 import { CatalogoController } from './catalogo/catalogo.controller';
 import { EvaluacionModule } from './evaluacion/evaluacion.module';
+import { IaModule } from './ia/ia.module';
+import { ReportesModule } from './reportes/reportes.module';
 import { MailModule } from './mail/mail.module';
 import { HealthModule } from './health/health.module';
 import { PrismaModule } from './prisma/prisma.module';
@@ -15,12 +17,14 @@ import { ProyectosModule } from './proyectos/proyectos.module';
     ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
     MailModule,
+    IaModule,
     AuthModule,
     HealthModule,
     AdministracionModule,
     ProyectosModule,
     EvaluacionModule,
     ResultadosModule,
+    ReportesModule,
   ],
   controllers: [CatalogoController],
 })
