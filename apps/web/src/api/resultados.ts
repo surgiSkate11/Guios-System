@@ -1,6 +1,6 @@
 import { leerToken } from '../auth/session'
 import type { Alcance } from './consolidacion'
-import { apiFetch } from './client'
+import { apiBlob, apiFetch } from './client'
 import type { EstadoJurado } from './proyectos'
 
 export type Foda = 'fortaleza' | 'oportunidad' | 'debilidad' | 'amenaza'
@@ -88,4 +88,8 @@ export function obtenerMiResultado(id: number): Promise<ResultadoMio> {
 
 export function obtenerAuditoria(id: number): Promise<Auditoria> {
   return apiFetch<Auditoria>(`/proyectos/${id}/auditoria`, { token: leerToken() })
+}
+
+export function descargarResultadosPdf(id: number): Promise<Blob> {
+  return apiBlob(`/proyectos/${id}/resultados/pdf`, leerToken())
 }

@@ -57,3 +57,23 @@ export async function apiFetch<T>(path: string, request: ApiRequest = {}): Promi
   if (!response.ok) throw new ApiError(response.status, messageOf(data))
   return data as T
 }
+
+/** Downloads a binary response (e.g. a PDF) under /api with the session token. */
+export async function apiBlob(path: string, token: string | null): Promise<Blob> {
+  let response: Response
+  try {
+    response = await fetch(`/api${path}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+  } catch {
+    throw new ApiError(0, NETWORK_ERROR)
+  }
+  if (!response.ok) {
+    let data: unknown = null
+    try {
+      data = JSON.parse(await response.text())
+    } catch {
+      data = null
+    }
+    throw new ApiError(response.status, messageOf(data))
+  }
+  return response.blob()
+}

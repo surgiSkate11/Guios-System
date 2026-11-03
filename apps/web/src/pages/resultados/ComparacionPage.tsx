@@ -4,6 +4,7 @@ import { useParams } from 'react-router'
 import { obtenerProyecto } from '../../api/proyectos'
 import {
   generarResultados,
+  obtenerResultados,
   obtenerVistaPrevia,
   type ResultadoProyecto,
   type SoftwareResultado,
@@ -13,6 +14,7 @@ import { PageHeader } from '../../components/PageHeader'
 import { SelectorProyecto } from '../../components/SelectorProyecto'
 import { AvisoMensaje, botonClass, EstadoCarga } from '../../components/ui'
 import { NivelEtiqueta } from './Etiquetas'
+import { ExportarPdf } from './ExportarPdf'
 import { BANDERAS, formatearMomento, uno } from './formato'
 
 const thClass = 'px-4 py-3 font-medium'
@@ -156,6 +158,10 @@ function Comparacion({ id }: { id: number }) {
   const cargar = useCallback(() => obtenerVistaPrevia(id), [id])
   const { datos, cargando, error, actualizar } = useCarga(cargar)
   const { aviso, ocupado, ejecutar } = useAccion()
+  // A stored result enables the PDF; a 404 here only means none was generated yet.
+  const cargarGuardado = useCallback(() => obtenerResultados(id), [id])
+  const guardado = useCarga(cargarGuardado)
+  const hayResultados = guardado.datos !== null || Boolean(datos?.generadoEn)
 
   const generar = () =>
     ejecutar(async () => {
@@ -175,12 +181,14 @@ function Comparacion({ id }: { id: number }) {
         subtitle={subtitulo}
         icon={GitCompareArrows}
         actions={
-          datos &&
-          proyecto.datos?.estado !== 'cerrado' && (
-            <button type="button" className={botonClass} disabled={ocupado} onClick={() => void generar()}>
-              Generar resultados
-            </button>
-          )
+          <div className="flex items-start gap-3">
+            {datos && proyecto.datos?.estado !== 'cerrado' && (
+              <button type="button" className={botonClass} disabled={ocupado} onClick={() => void generar()}>
+                Generar resultados
+              </button>
+            )}
+            {hayResultados && <ExportarPdf idProyecto={id} />}
+          </div>
         }
       />
       <AvisoMensaje aviso={aviso} />

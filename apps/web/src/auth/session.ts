@@ -49,3 +49,12 @@ export function registrarse(
 export function usuarioActual(token: string): Promise<Usuario> {
   return apiFetch<Usuario>('/auth/me', { token })
 }
+
+/** Asks for a reset link; the API answers 204 whether or not the e-mail exists (A7). */
+export function pedirRecuperacion(email: string): Promise<void> {
+  return apiFetch<void>('/auth/recuperar', { method: 'POST', body: { email } })
+}
+
+export function restablecerContrasena(token: string, password: string): Promise<void> {
+  return apiFetch<void>('/auth/restablecer', { method: 'POST', body: { token, password } })
+}

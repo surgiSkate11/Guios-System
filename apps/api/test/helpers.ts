@@ -1,6 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { Test } from '@nestjs/testing';
+import { Test, type TestingModuleBuilder } from '@nestjs/testing';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from '../src/app.module';
@@ -22,10 +22,13 @@ export interface TestContext {
   ) => Promise<{ id: number; auth: { Authorization: string } }>;
 }
 
-export async function createTestContext(): Promise<TestContext> {
-  const moduleRef = await Test.createTestingModule({
-    imports: [AppModule],
-  }).compile();
+/** `configurar` can override providers, e.g. to fake external services. */
+export async function createTestContext(
+  configurar: (b: TestingModuleBuilder) => TestingModuleBuilder = (b) => b,
+): Promise<TestContext> {
+  const moduleRef = await configurar(
+    Test.createTestingModule({ imports: [AppModule] }),
+  ).compile();
   const app = moduleRef.createNestApplication<INestApplication<App>>();
   configureApp(app);
   await app.init();

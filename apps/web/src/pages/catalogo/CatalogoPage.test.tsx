@@ -60,6 +60,9 @@ const VERSIONES = [
 const catalogoApi: FakeHandler = ({ method, path }) => {
   if (method === 'GET' && path === '/api/catalogo/vigente') return { status: 200, body: CATALOGO }
   if (method === 'GET' && path === '/api/catalogo/versiones') return { status: 200, body: VERSIONES }
+  if (method === 'GET' && (path === '/api/catalogo/estimaciones' || path === '/api/catalogo/factores')) {
+    return { status: 200, body: [] }
+  }
   return undefined
 }
 
