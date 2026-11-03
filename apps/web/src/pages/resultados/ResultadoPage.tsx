@@ -7,6 +7,7 @@ import { EstadoCarga } from '../../components/ui'
 import { PasosEvaluacion } from '../evaluacion/PasosEvaluacion'
 import { errorDePaso } from '../evaluacion/errores'
 import { FodaEtiqueta, NivelEtiqueta, PestanasSoftware } from './Etiquetas'
+import { ExportarPdf } from './ExportarPdf'
 import { ETIQUETA_ALCANCE, uno } from './formato'
 
 const thClass = 'px-4 py-3 font-medium'
@@ -119,7 +120,10 @@ function ResultadoConsolidado({ proyecto }: { proyecto: ProyectoResumen }) {
 
   return (
     <>
-      <PestanasSoftware softwares={datos.softwares} activo={software.id} onCambio={setIdSoftware} />
+      <div className="flex items-start justify-between">
+        <PestanasSoftware softwares={datos.softwares} activo={software.id} onCambio={setIdSoftware} />
+        <ExportarPdf idProyecto={proyecto.id} />
+      </div>
       <div className="grid grid-cols-[1fr_20rem] gap-5">
         <TablaFoda cabeceras={['Factor', 'Ponderación media', 'Alcance', 'FODA']}>
           {software.factores.map((factor) => (
