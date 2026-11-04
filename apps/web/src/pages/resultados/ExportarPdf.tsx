@@ -10,7 +10,8 @@ function guardarArchivo(blob: Blob, nombre: string) {
   enlace.href = url
   enlace.download = nombre
   enlace.click()
-  URL.revokeObjectURL(url)
+  // Some browsers start the download asynchronously; revoking right away can cancel it.
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
 /** "Exportar PDF" (RF-19): downloads the last generated result with the session token. */

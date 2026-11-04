@@ -50,7 +50,9 @@ describe('Exportar PDF (RF-19, HU-10)', () => {
     // The fetch Blob comes from Node, not from jsdom, so check its shape instead of its class.
     const blob = (crearUrl.mock.calls[0] as unknown as [Blob])[0]
     expect(blob.size).toBeGreaterThan(0)
-    expect(revocarUrl).toHaveBeenCalledWith('blob:resultado')
+    // The object URL is released shortly after the click, not immediately.
+    expect(revocarUrl).not.toHaveBeenCalled()
+    await waitFor(() => expect(revocarUrl).toHaveBeenCalledWith('blob:resultado'), { timeout: 3000 })
   })
 
   it('offers the PDF from the consolidated result too', async () => {
@@ -68,6 +70,15 @@ describe('Exportar PDF (RF-19, HU-10)', () => {
     const user = userEvent.setup()
     montar('/proyectos/10/comparacion', null)
     await user.click(await screen.findByRole('button', { name: 'Generar resultados' }))
+    expect(await screen.findByRole('button', { name: 'Exportar PDF' })).toBeInTheDocument()
+  })
+
+  it('keeps the button when loading the stored result fails for a reason other than 404', async () => {
+    const caido: FakeHandler = (request) =>
+      request.method === 'GET' && request.path === '/api/proyectos/10/resultados'
+        ? { status: 500, body: { message: 'Error interno' } }
+        : pdfApi(request)
+    montar('/proyectos/10/comparacion', null, caido)
     expect(await screen.findByRole('button', { name: 'Exportar PDF' })).toBeInTheDocument()
   })
 

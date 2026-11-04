@@ -101,6 +101,23 @@ describe('Estimación de la IS (RF-24, HU-22 a HU-24)', () => {
     expect(screen.getByLabelText('Citas de Usa modelos de lenguaje')).toHaveValue(4)
   }, 15_000)
 
+  it('keeps polling after a transient error until the proposal is ready', async () => {
+    const user = userEvent.setup()
+    const api = catalogoApi({ estimaciones: [PROPUESTA], iaConfigurada: true, pasosIa: 2 })
+    let lecturas = 0
+    const conFallo: typeof api.handler = (request) => {
+      if (request.method === 'GET' && request.path === '/api/catalogo/estimaciones/900') {
+        lecturas += 1
+        // The first poll after the initial load fails once.
+        if (lecturas === 2) return { status: 503, body: { message: 'Servicio no disponible' } }
+      }
+      return api.handler(request)
+    }
+    renderRoute('/admin/catalogo/estimaciones/31', { usuario: ADMINISTRADOR, api: conFallo })
+    await user.click(await screen.findByRole('button', { name: 'Estimar con IA' }))
+    expect(await screen.findByText('Propuesta · ia', {}, { timeout: 8000 })).toBeInTheDocument()
+  }, 15_000)
+
   it('warns when a cited subfactor has no DOI', async () => {
     const api = catalogoApi({
       estimaciones: [estimacionDe(32, 'Factor sin DOI', [{ texto: 'Sin referencias', citas: 2 }])],
