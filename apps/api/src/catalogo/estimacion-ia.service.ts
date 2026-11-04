@@ -4,6 +4,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  type OnModuleInit,
 } from '@nestjs/common';
 import type { Prisma } from '../generated/prisma/client';
 import { IA_CLIENTE, type IaCliente } from '../ia/ia-cliente';
@@ -68,7 +69,7 @@ const normalizarTexto = (s: string) =>
  * the citations and computes the IS. Runs in the background and reports progress (RNF-12).
  */
 @Injectable()
-export class EstimacionIaService {
+export class EstimacionIaService implements OnModuleInit {
   private readonly logger = new Logger(EstimacionIaService.name);
 
   constructor(
@@ -77,6 +78,23 @@ export class EstimacionIaService {
     @Inject(IA_CLIENTE) private readonly ia: IaCliente | null,
     @Inject(BIBLIOGRAFIA) private readonly bibliografia: Bibliografia,
   ) {}
+
+  /** Estimations run in memory: any still en_curso after a restart was interrupted. */
+  async onModuleInit(): Promise<void> {
+    const { count } = await this.prisma.estimacionIs.updateMany({
+      where: { estado: 'en_curso' },
+      data: {
+        estado: 'rechazada',
+        justificacion:
+          'Falló la estimación con IA; usa la carga manual de citas',
+        descartesJson: {
+          error: 'La estimación se interrumpió al reiniciar el servidor',
+        },
+      },
+    });
+    if (count > 0)
+      this.logger.warn(`${count} interrupted AI estimations marked as failed`);
+  }
 
   get disponible(): boolean {
     return this.ia !== null;

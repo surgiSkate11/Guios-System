@@ -102,6 +102,17 @@ export class CatalogoAdminService {
     dto: { nombre?: string; alcanceDefault?: Alcance; activo?: boolean },
   ): Promise<FactorAdmin> {
     await this.factorExistente(id);
+    if (dto.activo === true) {
+      // A factor waiting for its IS approval is activated only by approving it.
+      const pendiente = await this.prisma.estimacionIs.count({
+        where: { idFactor: id, estado: { in: ['en_curso', 'propuesta'] } },
+      });
+      if (pendiente > 0) {
+        throw new ConflictException(
+          'El factor tiene una estimación pendiente; apruébala o recházala',
+        );
+      }
+    }
     const fila = await this.prisma.factor.update({
       where: { id },
       data: dto,
@@ -251,8 +262,9 @@ export class CatalogoAdminService {
     }
 
     await this.prisma.$transaction(async (tx) => {
-      await tx.estimacionIs.update({
-        where: { id },
+      // Conditional update: of two simultaneous approvals only one still sees a proposal.
+      const { count } = await tx.estimacionIs.updateMany({
+        where: { id, estado: 'propuesta' },
         data: {
           estado: 'aprobada',
           citasPorSubfactorJson: citas as unknown as Prisma.InputJsonValue,
@@ -266,6 +278,11 @@ export class CatalogoAdminService {
           aprobadoPorId: admin.id,
         },
       });
+      if (count === 0) {
+        throw new ConflictException(
+          'Solo se puede decidir una estimación propuesta',
+        );
+      }
       await tx.factor.update({
         where: { id: fila.idFactor },
         data: {

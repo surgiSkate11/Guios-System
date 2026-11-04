@@ -160,6 +160,37 @@ describe('AI-assisted IS estimation (e2e, test database)', () => {
       .expect(201);
   });
 
+  it('on startup, marks estimations left running by a previous process as failed', async () => {
+    const huerfana = await t.prisma.estimacionIs.create({
+      data: {
+        idFactor: cat.usabilidad.id,
+        modo: 'ia',
+        estado: 'en_curso',
+        ns: 2,
+      },
+    });
+    const otro = await createTestContext((b) =>
+      b
+        .overrideProvider(BIBLIOGRAFIA)
+        .useValue(biblio)
+        .overrideProvider(IA_CLIENTE)
+        .useValue(ia),
+    );
+    try {
+      const res = await otro
+        .http()
+        .get(`/api/catalogo/estimaciones/${huerfana.id}`)
+        .set(admin.auth)
+        .expect(200);
+      expect(res.body).toMatchObject({
+        estado: 'rechazada',
+        error: 'La estimación se interrumpió al reiniciar el servidor',
+      });
+    } finally {
+      await otro.app.close();
+    }
+  });
+
   it('answers 404 for an unknown factor', async () => {
     await t
       .http()

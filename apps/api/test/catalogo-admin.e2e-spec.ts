@@ -197,6 +197,41 @@ describe('Catalog administration and IS (e2e, test database)', () => {
       .expect(409);
   });
 
+  it('two simultaneous approvals: one wins, the other gets 409 and only one version is published', async () => {
+    const est = (await crear(nuevo([3, 2, 2])).expect(201)).body;
+    const url = `/api/catalogo/estimaciones/${est.id}/aprobar`;
+    const codigos = (
+      await Promise.all([
+        t.http().post(url).set(admin.auth).send({}),
+        t.http().post(url).set(admin.auth).send({}),
+      ])
+    )
+      .map((r) => r.status)
+      .sort();
+    expect(codigos).toEqual([200, 409]);
+    expect(await t.prisma.catalogoVersion.count()).toBe(2);
+  });
+
+  it('refuses to activate a factor whose estimation is still pending', async () => {
+    const est = (await crear(nuevo([1])).expect(201)).body;
+    const res = await t
+      .http()
+      .patch(`/api/catalogo/factores/${est.factor.id}`)
+      .set(admin.auth)
+      .send({ activo: true })
+      .expect(409);
+    expect(res.body.message).toBe(
+      'El factor tiene una estimación pendiente; apruébala o recházala',
+    );
+    expect(
+      (
+        await t.prisma.factor.findUniqueOrThrow({
+          where: { id: est.factor.id },
+        })
+      ).activo,
+    ).toBe(false);
+  });
+
   it('an approved IS different from the computed one requires a justification', async () => {
     const est = (await crear(nuevo([3, 2, 2])).expect(201)).body;
     const url = `/api/catalogo/estimaciones/${est.id}/aprobar`;

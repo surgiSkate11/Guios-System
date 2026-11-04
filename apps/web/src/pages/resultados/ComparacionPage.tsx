@@ -161,7 +161,9 @@ function Comparacion({ id }: { id: number }) {
   // A stored result enables the PDF; a 404 here only means none was generated yet.
   const cargarGuardado = useCallback(() => obtenerResultados(id), [id])
   const guardado = useCarga(cargarGuardado)
-  const hayResultados = guardado.datos !== null || Boolean(datos?.generadoEn)
+  // Any failure other than 404 is transient: keep offering the PDF; the download reports its own error.
+  const fallaTransitoria = guardado.error !== null && guardado.status !== 404
+  const hayResultados = guardado.datos !== null || fallaTransitoria || Boolean(datos?.generadoEn)
 
   const generar = () =>
     ejecutar(async () => {

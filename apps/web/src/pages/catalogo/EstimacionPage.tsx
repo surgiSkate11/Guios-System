@@ -34,6 +34,9 @@ function Detalle({ inicial }: { inicial: Estimacion }) {
   const enCurso = estimacion.estado === 'en_curso'
   const editable = estimacion.estado === 'propuesta'
 
+  // A failed poll schedules another one: a transient network error must not freeze the progress.
+  const [reintentos, setReintentos] = useState(0)
+
   // An AI estimation is polled until the server turns it into a proposal (or it fails).
   useEffect(() => {
     if (!enCurso) return
@@ -44,7 +47,9 @@ function Detalle({ inicial }: { inicial: Estimacion }) {
           if (activo) setEstimacion(siguiente)
         },
         (failure: unknown) => {
-          if (activo) setAviso(avisoDeError(failure))
+          if (!activo) return
+          setAviso(avisoDeError(failure))
+          setReintentos((n) => n + 1)
         },
       )
     }, SONDEO_MS)
@@ -52,7 +57,7 @@ function Detalle({ inicial }: { inicial: Estimacion }) {
       activo = false
       clearTimeout(temporizador)
     }
-  }, [enCurso, estimacion])
+  }, [enCurso, estimacion, reintentos])
 
   const valorDe = (sub: Estimacion['subfactores'][number]) => citas[sub.id] ?? String(sub.citas)
   const enVivo = calcularIsEnVivo(
