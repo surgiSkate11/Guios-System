@@ -60,6 +60,22 @@ const VERSIONES = [
 const catalogoApi: FakeHandler = ({ method, path }) => {
   if (method === 'GET' && path === '/api/catalogo/vigente') return { status: 200, body: CATALOGO }
   if (method === 'GET' && path === '/api/catalogo/versiones') return { status: 200, body: VERSIONES }
+  // No anchors yet and no cuts published with them, so the block shows its empty state.
+  if (method === 'GET' && path === '/api/catalogo/anclas') {
+    return {
+      status: 200,
+      body: {
+        estado: 'inactiva',
+        progreso: null,
+        factorActual: null,
+        error: null,
+        version: { id: 1, numero: 1 },
+        cortes: null,
+        dispersion: null,
+        anclas: [],
+      },
+    }
+  }
   if (method === 'GET' && (path === '/api/catalogo/estimaciones' || path === '/api/catalogo/factores')) {
     return { status: 200, body: [] }
   }
@@ -74,6 +90,20 @@ describe('Catálogo de factores (lectura)', () => {
     expect(screen.getByText('Cortes: rq1 1.86 · rq2 3.65 · rq3 4.78')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Tecnológica.*2 factores/ })).toHaveAttribute('aria-expanded', 'true')
     expect(screen.getByRole('button', { name: /Económica.*1 factor$/ })).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it('explains what TC, NS, r, IL and IS mean', async () => {
+    renderRoute('/admin/catalogo', { usuario: ADMINISTRADOR, api: catalogoApi })
+
+    const glosario = await screen.findByRole('region', { name: 'Cómo se leen los indicadores' })
+    expect(glosario).toHaveTextContent('TC')
+    expect(glosario).toHaveTextContent('Total de citas')
+    expect(glosario).toHaveTextContent('NS')
+    expect(glosario).toHaveTextContent('Número de subfactores')
+    expect(glosario).toHaveTextContent('r = TC / NS')
+    expect(glosario).toHaveTextContent('Importancia de la literatura')
+    expect(glosario).toHaveTextContent('Importancia sugerida')
+    expect(glosario).toHaveTextContent('rq1, rq2 y rq3')
   })
 
   it('lists each factor with suggested importance, default scope, origin and validation', async () => {
