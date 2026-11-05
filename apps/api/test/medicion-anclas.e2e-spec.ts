@@ -17,17 +17,20 @@ const art = (doi: string, extra: Partial<Articulo> = {}): Articulo => ({
 
 /**
  * The number of valid articles depends on the factor, so each anchor gets a different r:
- * Usabilidad 3 articles x 2 subfactors -> r 3; Documentación -> r 2; Formación -> r 1.
+ * Usabilidad 3 articles x 2 subfactors -> r 3; Documentación -> r 2; Formación -> r 1;
+ * Integración con IA 4 articles x 2 subfactors -> r 4 (only used by the incremental case).
  */
 const VALIDOS: Record<string, number> = {
   Usabilidad: 3,
   Documentación: 2,
   Formación: 1,
+  'Integración con IA': 4,
 };
 const PREFIJO: Record<string, string> = {
   Usabilidad: 'u',
   Documentación: 'd',
   Formación: 'f',
+  'Integración con IA': 'i',
 };
 
 class FakeBibliografia implements Bibliografia {
@@ -287,6 +290,102 @@ describe('Anchor measurement (e2e, test database)', () => {
     // with the old ones it would have been 2.
     expect(fin).toMatchObject({ r: 3, il: 4, isPropuesta: 3 });
     expect(consultasDocumentacion()).toBe(antes);
+  });
+
+  it('measures only the new factors and keeps the published anchors (incremental)', async () => {
+    const primera = await medir();
+    expect(primera.anclas).toHaveLength(3);
+    const consultasAntes = biblio.consultas.length;
+    expect(consultasAntes).toBe(6);
+
+    // A new factor enters the catalog: only it must be measured on the next run.
+    const nuevo = await t.prisma.factor.create({
+      data: {
+        idDimension: cat.tec.id,
+        nombre: 'Integración con IA',
+        sugeridaDefault: 3,
+        alcanceDefault: 'externo',
+        origen: 'lit_2020_2025',
+        subfactores: {
+          create: [
+            { texto: 'Permite usar modelos externos' },
+            { texto: 'Analiza datos con varios proveedores' },
+          ],
+        },
+      },
+    });
+
+    const fin = await medir();
+    expect(fin).toMatchObject({ estado: 'completada', version: { numero: 3 } });
+    // Two queries, one per subfactor of the new factor: the three old anchors are kept.
+    expect(biblio.consultas).toHaveLength(consultasAntes + 2);
+    expect(fin.anclas).toEqual([
+      {
+        idFactor: cat.usabilidad.id,
+        nombre: 'Usabilidad',
+        citas: 6,
+        ns: 2,
+        r: 3,
+      },
+      {
+        idFactor: cat.documentacion.id,
+        nombre: 'Documentación',
+        citas: 4,
+        ns: 2,
+        r: 2,
+      },
+      {
+        idFactor: cat.formacion.id,
+        nombre: 'Formación',
+        citas: 2,
+        ns: 2,
+        r: 1,
+      },
+      {
+        idFactor: nuevo.id,
+        nombre: 'Integración con IA',
+        citas: 8,
+        ns: 2,
+        r: 4,
+      },
+    ]);
+    // QUARTILE.INC over [1, 2, 3, 4]: q1 = 1.75, q2 = 2.5, q3 = 3.25.
+    expect(fin.cortes).toEqual({ rq1: 1.75, rq2: 2.5, rq3: 3.25 });
+
+    const versiones = await t.prisma.catalogoVersion.findMany({
+      orderBy: { numero: 'asc' },
+    });
+    expect(versiones.map((v) => v.numero)).toEqual([1, 2, 3]);
+    // The cuts of the previous versions never change (RF-17).
+    expect(versiones[1]).toMatchObject({ rq1: 1.5, rq2: 2, rq3: 2.5 });
+
+    const anclas = await t.prisma.medicionAncla.findMany({
+      where: { idCatalogoVersion: versiones[2].id },
+      orderBy: { idFactor: 'asc' },
+    });
+    expect(anclas.map((a) => [a.idFactor, a.citas, a.ns, a.r])).toEqual([
+      [cat.usabilidad.id, 6, 2, 3],
+      [cat.documentacion.id, 4, 2, 2],
+      [cat.formacion.id, 2, 2, 1],
+      [nuevo.id, 8, 2, 4],
+    ]);
+    // The inherited anchors keep the period of their own measurement.
+    expect(
+      anclas.every((a) => a.periodoDesde === 2020 && a.periodoHasta === 2025),
+    ).toBe(true);
+  });
+
+  it('answers 400 when every active factor already has an anchor', async () => {
+    await medir();
+    const res = await t
+      .http()
+      .post('/api/catalogo/anclas/medir')
+      .set(admin.auth)
+      .expect(400);
+    expect(res.body.message).toContain('factores nuevos por medir');
+    // Nothing new is published and the last anchors stay untouched.
+    expect(await t.prisma.catalogoVersion.count()).toBe(2);
+    expect(await t.prisma.medicionAncla.count()).toBe(3);
   });
 
   it('rejects a second measurement while one is running (RNF-12)', async () => {

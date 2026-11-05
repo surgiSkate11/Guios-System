@@ -171,7 +171,11 @@ export class MedicionAnclasService {
     return trabajo;
   }
 
-  /** Active factors of the global catalog: the anchors are not hardcoded to the thesis 18. */
+  /**
+   * Active factors of the global catalog that still have no anchor in the current version:
+   * measurement is incremental, so an existing anchor is never measured again and keeps its
+   * citations, ns and r (section 6). The anchors are not hardcoded to the thesis 18 either.
+   */
   private async factoresMedibles(): Promise<{ id: number; nombre: string }[]> {
     const factores = await this.prisma.factor.findMany({
       where: {
@@ -187,7 +191,23 @@ export class MedicionAnclasService {
     }
     // Without a loaded catalog there are no cuts to compare against.
     await this.catalogo.cortesVigentes();
-    return factores;
+    const version = await this.prisma.catalogoVersion.findFirst({
+      orderBy: { numero: 'desc' },
+      select: { id: true },
+    });
+    if (!version) return factores;
+    const medidas = await this.prisma.medicionAncla.findMany({
+      where: { idCatalogoVersion: version.id },
+      select: { idFactor: true },
+    });
+    const conAncla = new Set(medidas.map((a) => a.idFactor));
+    const nuevas = factores.filter((f) => !conAncla.has(f.id));
+    if (nuevas.length === 0) {
+      throw new BadRequestException(
+        'Todos los factores activos ya tienen ancla; no hay factores nuevos por medir',
+      );
+    }
+    return nuevas;
   }
 
   private async ejecutar(
@@ -224,17 +244,17 @@ export class MedicionAnclasService {
         this.progreso(i + 1, null, anclas);
       }
 
-      const cortes = cuartilesInclusivos(anclas.map((a) => a.r));
-      const version = await this.publicar(anclas, cortes, admin);
+      // The cuts are computed over every anchor of the version, inherited ones included.
+      const publicado = await this.publicar(anclas, admin);
       this.trabajo = {
         estado: 'completada',
         progreso: null,
         factorActual: null,
         error: null,
-        version: { id: version.id, numero: version.numero },
-        cortes,
-        dispersion: dispersion(anclas.map((a) => a.r)),
-        anclas,
+        version: publicado.version,
+        cortes: publicado.cortes,
+        dispersion: dispersion(publicado.anclas.map((a) => a.r)),
+        anclas: publicado.anclas,
       };
     } catch (error) {
       const mensaje = error instanceof Error ? error.message : String(error);
@@ -285,19 +305,42 @@ export class MedicionAnclasService {
   }
 
   /**
-   * Publishes one new catalog version carrying the measured cuts and one anchor row per
-   * factor. Projects keep their own version, so no IS of an existing project changes (RF-17).
+   * Publishes one new catalog version carrying the anchors inherited from the previous one,
+   * one new anchor row per newly measured factor, and the quartile cuts over the whole set.
+   * The inherited anchors keep their own search terms, period, citations, ns and r, so an
+   * incremental measurement never rewrites an existing anchor. Projects keep their own
+   * version, so no IS of an existing project changes (RF-17).
    */
   private async publicar(
-    anclas: readonly AnclaMedida[],
-    cortes: Cortes,
+    nuevas: readonly AnclaMedida[],
     admin: UsuarioPublico,
-  ): Promise<{ id: number; numero: number }> {
+  ): Promise<{
+    version: { id: number; numero: number };
+    cortes: Cortes;
+    anclas: AnclaMedida[];
+  }> {
     return this.prisma.$transaction(async (tx) => {
       const ultima = await tx.catalogoVersion.findFirst({
         orderBy: { numero: 'desc' },
-        select: { numero: true },
+        include: {
+          anclas: {
+            orderBy: { idFactor: 'asc' },
+            include: { factor: { select: { nombre: true } } },
+          },
+        },
       });
+      const previas = ultima?.anclas ?? [];
+      const anclas = [
+        ...previas.map((a) => ({
+          idFactor: a.idFactor,
+          nombre: a.factor.nombre,
+          citas: a.citas,
+          ns: a.ns,
+          r: a.r,
+        })),
+        ...nuevas,
+      ].sort((a, b) => a.idFactor - b.idFactor);
+      const cortes = cuartilesInclusivos(anclas.map((a) => a.r));
       const version = await tx.catalogoVersion.create({
         data: {
           numero: (ultima?.numero ?? 0) + 1,
@@ -306,7 +349,21 @@ export class MedicionAnclasService {
           ...cortes,
         },
       });
-      for (const ancla of anclas) {
+      for (const previa of previas) {
+        await tx.medicionAncla.create({
+          data: {
+            idFactor: previa.idFactor,
+            idCatalogoVersion: version.id,
+            terminosBusqueda: previa.terminosBusqueda ?? {},
+            periodoDesde: previa.periodoDesde,
+            periodoHasta: previa.periodoHasta,
+            citas: previa.citas,
+            ns: previa.ns,
+            r: previa.r,
+          },
+        });
+      }
+      for (const ancla of nuevas) {
         const temporal = await tx.estimacionIs.findFirst({
           where: { idFactor: ancla.idFactor, estado: 'rechazada' },
           orderBy: { id: 'desc' },
@@ -325,7 +382,11 @@ export class MedicionAnclasService {
           },
         });
       }
-      return { id: version.id, numero: version.numero };
+      return {
+        version: { id: version.id, numero: version.numero },
+        cortes,
+        anclas,
+      };
     });
   }
 }

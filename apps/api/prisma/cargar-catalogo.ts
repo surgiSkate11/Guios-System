@@ -19,7 +19,7 @@ async function main(): Promise<void> {
     const r = await cargarCatalogo(prisma, json);
     console.log(
       r.creado
-        ? `Catalog version ${r.version} loaded: ${r.dimensiones} dimensions, ${r.factores} factors, ${r.subfactores} subfactors.`
+        ? `Catalog version ${r.version} loaded: ${r.dimensiones} dimensions, ${r.factores} factors, ${r.subfactores} subfactors, ${r.anclas} anchors.`
         : `A catalog already exists (version ${r.version}); nothing was loaded.`,
     );
   } finally {

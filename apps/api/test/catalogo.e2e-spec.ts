@@ -113,6 +113,7 @@ describe('Catalog A2 (e2e, test database)', () => {
         dimensiones: 2,
         factores: 2,
         subfactores: 3,
+        anclas: 0,
       });
       const factor = await t.prisma.factor.findFirstOrThrow({
         where: { nombre: 'Usabilidad' },
@@ -138,6 +139,7 @@ describe('Catalog A2 (e2e, test database)', () => {
         dimensiones: 0,
         factores: 0,
         subfactores: 0,
+        anclas: 0,
       });
       expect(await t.prisma.factor.count()).toBe(2);
     });
