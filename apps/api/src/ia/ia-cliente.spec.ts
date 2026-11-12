@@ -23,6 +23,17 @@ describe('crearIaCliente', () => {
     expect(cliente!.modelo).toBe('otro');
   });
 
+  it('reads the Gemini fallback models from IA_MODELOS_RESPALDO', () => {
+    const porDefecto = crearIaCliente(
+      config({ IA_API_KEY: 'k' }),
+    ) as GeminiCliente;
+    expect(porDefecto.respaldo).toEqual(['gemini-3.5-flash']);
+    const propio = crearIaCliente(
+      config({ IA_API_KEY: 'k', IA_MODELOS_RESPALDO: ' a , b ,, ' }),
+    ) as GeminiCliente;
+    expect(propio.respaldo).toEqual(['a', 'b']);
+  });
+
   it('rejects an unknown provider with a clear message', () => {
     expect(() =>
       crearIaCliente(config({ IA_API_KEY: 'k', IA_PROVEEDOR: 'otro' })),
@@ -71,6 +82,44 @@ describe('GeminiCliente', () => {
       systemInstruction: { parts: [{ text: 'instrucciones' }] },
       contents: [{ role: 'user', parts: [{ text: 'entrada' }] }],
     });
+  });
+
+  it('falls back to the next model when one is overloaded or unavailable', async () => {
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 503,
+        json: () => Promise.resolve({}),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        json: () => Promise.resolve({}),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            candidates: [{ content: { parts: [{ text: 'listo' }] } }],
+          }),
+      });
+    global.fetch = fetchMock;
+    const cliente = new GeminiCliente('k', 'principal', ['viejo', 'respaldo']);
+    await expect(cliente.completar('i', 'e')).resolves.toBe('listo');
+    const modelos = fetchMock.mock.calls.map(
+      ([url]) => /models\/(.+):/.exec(url as string)![1],
+    );
+    expect(modelos).toEqual(['principal', 'viejo', 'respaldo']);
+  });
+
+  it('does not try fallback models on a configuration error such as 403', async () => {
+    const fetchMock = responder(403, {});
+    await expect(
+      new GeminiCliente('k', 'm', ['otro']).completar('i', 'e'),
+    ).rejects.toThrow('403');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it('fails on an HTTP error or an empty answer', async () => {
