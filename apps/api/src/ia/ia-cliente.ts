@@ -9,7 +9,12 @@ export interface IaCliente {
 /** Injection token; resolves to null when no AI is configured (RNF-06 fallbacks apply). */
 export const IA_CLIENTE = Symbol('IA_CLIENTE');
 
-const MODELO_POR_DEFECTO = 'claude-haiku-5-5';
+/** Default model of each supported provider (IA_PROVEEDOR). */
+const MODELOS_POR_DEFECTO = {
+  gemini: 'gemini-3.8-flash',
+  anthropic: 'claude-haiku-5-5',
+} as const;
+type Proveedor = keyof typeof MODELOS_POR_DEFECTO;
 const TIMEOUT_MS = 60_000;
 
 /** Anthropic Messages API client. The key lives only on the server (RNF-05). */
@@ -45,11 +50,55 @@ export class AnthropicCliente implements IaCliente {
   }
 }
 
+/** Google Gemini generateContent client. The key goes in a header, never in the URL. */
+export class GeminiCliente implements IaCliente {
+  constructor(
+    private readonly apiKey: string,
+    readonly modelo: string,
+  ) {}
+
+  async completar(instrucciones: string, entrada: string): Promise<string> {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(this.modelo)}:generateContent`;
+    const res = await fetch(url, {
+      method: 'POST',
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+      headers: {
+        'content-type': 'application/json',
+        'x-goog-api-key': this.apiKey,
+      },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: instrucciones }] },
+        contents: [{ role: 'user', parts: [{ text: entrada }] }],
+      }),
+    });
+    if (!res.ok) throw new Error(`AI service answered ${res.status}`);
+    const data = (await res.json()) as {
+      candidates?: { content?: { parts?: { text?: string }[] } }[];
+    };
+    const texto = (data.candidates?.[0]?.content?.parts ?? [])
+      .map((p) => p.text ?? '')
+      .join('')
+      .trim();
+    if (!texto) throw new Error('AI service returned no text');
+    return texto;
+  }
+}
+
 export function crearIaCliente(config: ConfigService): IaCliente | null {
   const apiKey = config.get<string>('IA_API_KEY');
   if (!apiKey) return null;
-  return new AnthropicCliente(
-    apiKey,
-    config.get<string>('IA_MODELO') ?? MODELO_POR_DEFECTO,
-  );
+  const proveedor = (
+    config.get<string>('IA_PROVEEDOR') ?? 'gemini'
+  ).toLowerCase();
+  if (!(proveedor in MODELOS_POR_DEFECTO)) {
+    throw new Error(
+      `IA_PROVEEDOR must be one of: ${Object.keys(MODELOS_POR_DEFECTO).join(', ')}`,
+    );
+  }
+  const modelo =
+    config.get<string>('IA_MODELO') ??
+    MODELOS_POR_DEFECTO[proveedor as Proveedor];
+  return proveedor === 'anthropic'
+    ? new AnthropicCliente(apiKey, modelo)
+    : new GeminiCliente(apiKey, modelo);
 }
