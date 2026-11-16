@@ -27,6 +27,37 @@ async function findNav() {
 }
 
 describe('AppLayout', () => {
+  it('offers a skip link to the main content for keyboard users (RNF-10)', async () => {
+    renderRoute('/inicio', { usuario: COORDINADOR })
+    const salto = await screen.findByRole('link', { name: 'Saltar al contenido' })
+    expect(salto).toHaveAttribute('href', '#contenido')
+    expect(screen.getByRole('main')).toHaveAttribute('id', 'contenido')
+  })
+
+  it('toggles the navigation drawer on narrow screens and closes it with Escape (RNF-10)', async () => {
+    const user = userEvent.setup()
+    renderRoute('/inicio', { usuario: COORDINADOR })
+    const boton = await screen.findByRole('button', { name: 'Abrir menú' })
+    expect(boton).toHaveAttribute('aria-expanded', 'false')
+    expect(boton).toHaveAttribute('aria-controls', 'barra-lateral')
+
+    await user.click(boton)
+    expect(boton).toHaveAttribute('aria-expanded', 'true')
+    expect(document.getElementById('barra-lateral')).toHaveAttribute('data-abierta', 'true')
+
+    await user.keyboard('{Escape}')
+    expect(boton).toHaveAttribute('aria-expanded', 'false')
+    expect(document.getElementById('barra-lateral')).toHaveAttribute('data-abierta', 'false')
+  })
+
+  it('closes the drawer after navigating from it', async () => {
+    const user = userEvent.setup()
+    renderRoute('/inicio', { usuario: COORDINADOR })
+    await user.click(await screen.findByRole('button', { name: 'Abrir menú' }))
+    await user.click(screen.getByRole('link', { name: 'Historial' }))
+    expect(document.getElementById('barra-lateral')).toHaveAttribute('data-abierta', 'false')
+  })
+
   it('shows the brand, the search box and the user menu with the real name', async () => {
     renderRoute('/inicio', { usuario: COORDINADOR })
     expect(await screen.findByText('GUIOS PRO')).toBeInTheDocument()

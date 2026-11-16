@@ -79,14 +79,33 @@ function SidebarGroup({ item }: { item: NavGroupItem }) {
   )
 }
 
-export function Sidebar() {
+interface SidebarProps {
+  /** Drawer state below the lg breakpoint; on wide screens the sidebar is always visible. */
+  abierta: boolean
+  onCerrar: () => void
+}
+
+export function Sidebar({ abierta, onCerrar }: SidebarProps) {
   const { usuario } = useAuth()
   const { proyectos } = useProyectos()
   const items = usuario ? navigationFor(usuario.rol, proyectos) : []
   return (
-    <aside className="flex w-64 shrink-0 flex-col border-r border-slate-200 bg-white px-5 py-5">
+    <aside
+      id="barra-lateral"
+      data-abierta={abierta}
+      className={`fixed inset-y-0 left-0 z-40 flex w-64 shrink-0 flex-col overflow-y-auto border-r border-slate-200 bg-white px-5 py-5 transition-transform lg:visible lg:static lg:translate-x-0 ${
+        abierta ? 'translate-x-0' : 'invisible -translate-x-full'
+      }`}
+    >
       <Brand />
-      <nav aria-label="Navegación principal" className="mt-6 flex-1 space-y-1">
+      <nav
+        aria-label="Navegación principal"
+        className="mt-6 flex-1 space-y-1"
+        onClick={(event) => {
+          // Following a link closes the drawer on narrow screens.
+          if ((event.target as HTMLElement).closest('a')) onCerrar()
+        }}
+      >
         {items.map((item) =>
           isNavGroup(item) ? (
             <SidebarGroup key={item.label} item={item} />
