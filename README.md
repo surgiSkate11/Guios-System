@@ -1,27 +1,52 @@
 # GUIOS PRO
 
 Web application that evaluates one or more candidate software products against an
-organization's requirement, with one or more judges. Full specification:
-[`doc/GUIOS PRO especificación de requerimientos.pdf`](doc/). Prototype screens:
-`doc/img prototipo/`.
+organization's requirement, with one or more judges, following the GUIOS guide
+(Rea Sánchez, 2022). For each software it delivers a SWOT per factor, a 0-100 metric and an
+adoption level A, B or C.
+
+Specification: [`doc/GUIOS PRO especificación de requerimientos.pdf`](doc/) ·
+Prototype screens: `doc/img prototipo/`.
+
+## Features
+
+- **Accounts and roles**: self sign-up (guest), coordinator and administrator roles, password
+  recovery by email, rate-limited authentication.
+- **Projects and judges**: projects with several candidate software products, judge invitations
+  per project (judge is a per-project role), single-judge mode, closed projects are immutable.
+- **Evaluation**: judges rate factor importance and subfactor compliance with immediate saving.
+- **Consolidation**: consolidated decision-maker importance (median or mean), relative
+  importance, relevance and per-project scope reclassification.
+- **Results**: mean weighting, SWOT, metric, adoption level, ranking, ambiguity flags, judge
+  audit, personal results and PDF export.
+- **AI analysis**: text analysis with recommendations over the SWOT, pseudonymized input,
+  number validation and a fallback text when the AI is unavailable.
+- **Catalog**: the thesis catalog (18 factors, 61 subfactors, 18 anchors) with versions, factor
+  administration, suggested importance (IS) computed live, AI-assisted citation estimation and
+  anchor measurement.
+
+Every calculation rule (RN-01 to RN-14) lives in `@guios/calculo` and is shared by the API and
+the web.
 
 ## Structure
 
 | Path | Purpose |
 | --- | --- |
-| `packages/calculo` | `@guios/calculo`: calculation rules RN-01 to RN-14, shared by API and web |
-| `apps/api` | `@guios/api`: NestJS REST API, every route under `/api`; Prisma + PostgreSQL |
+| `packages/calculo` | `@guios/calculo`: calculation rules RN-01 to RN-14, pure TypeScript |
+| `apps/api` | `@guios/api`: NestJS REST API under `/api`, Prisma + PostgreSQL |
 | `apps/web` | `@guios/web`: React + Vite + Tailwind frontend |
-| `doc/` | Requirements specification and prototype screens |
-| `odd/tasks/` | Feature tracking documents |
-| `docs/EQUIPO.md` | Remaining tasks split per team member |
+| `docs/api-contract.md` | REST contract between API and web |
+| `docs/catalogo-y-anclas.md` | Catalog indicators (TC, NS, r, IL, IS) and anchor measurement |
+| `docs/MANUAL-USUARIO.md` | User manual per role |
+| `docs/DESPLIEGUE.md` | Production deployment guide |
+| `docs/` (other files) | Thesis sources: factors, subfactors, prototype script and technical manual |
 
 ## Requirements
 
 - Node.js 22 or newer, npm 10 (workspaces)
-- PostgreSQL 17 or 18 running locally
+- PostgreSQL 17 or 18
 
-## First-time setup
+## Getting started
 
 1. Install dependencies (also generates the Prisma client):
    ```bash
@@ -32,7 +57,7 @@ organization's requirement, with one or more judges. Full specification:
    psql -U postgres -c "CREATE DATABASE guios;"
    ```
 3. Create `apps/api/.env` (ignored by git) with the variables below.
-4. Apply the migrations and create the default administrator:
+4. Apply the migrations (they also load the thesis catalog) and create the default administrator:
    ```bash
    npm run db:deploy -w @guios/api
    npm run db:seed -w @guios/api
@@ -62,6 +87,7 @@ organization's requirement, with one or more judges. Full specification:
 | `OPENALEX_MAILTO` | no | — | Contact email sent to OpenAlex (polite pool) |
 | `AUTH_RATE_LIMIT` | no | `10` | Max login, sign-up and recovery requests per minute per client |
 
+
 ## Commands
 
 ```bash
@@ -76,31 +102,15 @@ npm run db:catalogo -w @guios/api   # load the thesis catalog from prisma/catalo
 npm run db:generate -w @guios/api   # regenerate the Prisma client
 ```
 
-### Test database
+### Tests
 
-The API e2e tests never touch your development database. They derive a second URL from
-`DATABASE_URL` with the database name replaced by `guios_test`, create that database if
-needed, apply every migration to it and empty its tables between tests. The PostgreSQL
-user in `DATABASE_URL` therefore needs permission to create databases.
-
-## Thesis catalog
-
-`npm run db:catalogo -w @guios/api -- [file]` loads catalog version 1 from a JSON file
-(default `apps/api/prisma/catalogo.json`). It validates the whole file before writing and does
-nothing if a catalog already exists. Format:
-
-```json
-{
-  "motivo": "Catálogo validado de la tesis",
-  "cortes": { "rq1": 1.86, "rq2": 3.65, "rq3": 4.78 },
-  "dimensiones": [
-    { "nombre": "Tecnológica", "factores": [
-      { "nombre": "Usabilidad", "sugeridaDefault": 3, "alcanceDefault": "externo",
-        "subfactores": ["Interfaz intuitiva", "Curva de aprendizaje baja"] }
-    ] }
-  ]
-}
-```
+- `packages/calculo`: unit tests of every rule, including the specification examples.
+- `apps/api`: unit tests and end-to-end tests over HTTP. The e2e tests never touch your
+  development database: they derive a second URL from `DATABASE_URL` with the database name
+  `guios_test`, create it if needed, apply every migration and empty its tables between tests,
+  so the PostgreSQL user needs permission to create databases. They also run without AI and
+  email, whatever `apps/api/.env` configures.
+- `apps/web`: component tests with Vitest and Testing Library against a fake API.
 
 ## API
 
@@ -108,3 +118,7 @@ The full REST contract is in [`docs/api-contract.md`](docs/api-contract.md). Eve
 `Authorization: Bearer <token>` unless marked public; open a route with `@Public()` and restrict it
 with `@Roles(...)` (`apps/api/src/auth/decorators.ts`). Project routes also check, on the server,
 that the user is the project coordinator or one of its judges.
+
+## Deployment
+
+See [`docs/DESPLIEGUE.md`](docs/DESPLIEGUE.md).
