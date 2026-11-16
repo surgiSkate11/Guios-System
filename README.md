@@ -19,6 +19,9 @@ Prototype screens: `doc/img prototipo/`.
   importance, relevance and per-project scope reclassification.
 - **Results**: mean weighting, SWOT, metric, adoption level, ranking, ambiguity flags, judge
   audit, personal results and PDF export.
+- **AI suggested importance**: when a project is created, the AI proposes the IS of every
+  factor for its context (organization sector and software type) in one call with web search;
+  strict validation, a +/-1 cap, fallback to the thesis IS, audit log and cache.
 - **AI analysis**: text analysis with recommendations over the SWOT, pseudonymized input,
   number validation and a fallback text when the AI is unavailable.
 - **Catalog**: the thesis catalog (18 factors, 61 subfactors, 18 anchors) with versions, factor
@@ -84,6 +87,7 @@ the web.
 | `IA_API_KEY` | no | — | API key of the provider, used by the AI analysis and the AI IS estimation. Without it the analysis uses the fallback text and the AI estimation answers 409. On the Gemini free tier Google may use requests to improve its models; only public abstracts and pseudonymized results are sent |
 | `IA_MODELO` | no | `gemini-3.8-flash` (gemini) / `claude-haiku-5-5` (anthropic) | AI model id |
 | `IA_MODELOS_RESPALDO` | no | `gemini-3.5-flash` | Gemini only: comma-separated models tried in order when the main one is overloaded (503), rate-limited (429), retired (404) or does not answer within 20 s |
+| `IA_IS_DESVIO_MAX` | no | `1` | Maximum difference, in levels, between the AI suggested importance of a project and the thesis IS |
 | `OPENALEX_MAILTO` | no | — | Contact email sent to OpenAlex (polite pool) |
 | `AUTH_RATE_LIMIT` | no | `10` | Max login, sign-up and recovery requests per minute per client |
 

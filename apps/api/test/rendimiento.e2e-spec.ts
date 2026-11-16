@@ -1,6 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { cargarCatalogo, type CatalogoJson } from '../src/catalogo/cargar-catalogo';
+import {
+  cargarCatalogo,
+  type CatalogoJson,
+} from '../src/catalogo/cargar-catalogo';
 import { crearOrganizacion } from './fixtures';
 import { createTestContext, TestContext } from './helpers';
 
@@ -30,10 +33,14 @@ describe('Performance RNF-04 (e2e, test database)', () => {
     const org = await crearOrganizacion(t.prisma);
     const coord = await t.usuario('coordinador', { idOrganizacion: org.id });
     const jurados = await Promise.all(
-      Array.from({ length: 10 }, (_, i) => t.usuario('invitado', { nombre: `Jurado ${i + 1}` })),
+      Array.from({ length: 10 }, (_, i) =>
+        t.usuario('invitado', { nombre: `Jurado ${i + 1}` }),
+      ),
     );
     const version = await t.prisma.catalogoVersion.findFirstOrThrow();
-    const dimensiones = await t.prisma.dimension.findMany({ where: { idProyecto: null } });
+    const dimensiones = await t.prisma.dimension.findMany({
+      where: { idProyecto: null },
+    });
     const factores = await t.prisma.factor.findMany({
       where: { activo: true },
       include: { subfactores: { where: { activo: true } } },
@@ -48,9 +55,13 @@ describe('Performance RNF-04 (e2e, test database)', () => {
         idOrganizacion: org.id,
         idCoordinador: coord.id,
         idCatalogoVersion: version.id,
-        dimensiones: { create: dimensiones.map((d) => ({ idDimension: d.id })) },
+        dimensiones: {
+          create: dimensiones.map((d) => ({ idDimension: d.id })),
+        },
         softwares: {
-          create: Array.from({ length: 5 }, (_, i) => ({ nombre: `Software ${i + 1}` })),
+          create: Array.from({ length: 5 }, (_, i) => ({
+            nombre: `Software ${i + 1}`,
+          })),
         },
         factores: {
           create: factores.map((f) => ({
@@ -63,7 +74,9 @@ describe('Performance RNF-04 (e2e, test database)', () => {
           create: jurados.map((j) => ({
             idUsuario: j.id,
             estado: 'activo' as const,
-            dimensiones: { create: dimensiones.map((d) => ({ idDimension: d.id })) },
+            dimensiones: {
+              create: dimensiones.map((d) => ({ idDimension: d.id })),
+            },
           })),
         },
       },
@@ -73,11 +86,19 @@ describe('Performance RNF-04 (e2e, test database)', () => {
     // Every judge rates every factor as Fundamental, so all 18 factors are relevant.
     await t.prisma.juradoImportancia.createMany({
       data: proyecto.factores.flatMap((pf) =>
-        jurados.map((j) => ({ idProyectoFactor: pf.id, idUsuario: j.id, impDecisor: 4 })),
+        jurados.map((j) => ({
+          idProyectoFactor: pf.id,
+          idUsuario: j.id,
+          impDecisor: 4,
+        })),
       ),
     });
     const url = `/api/proyectos/${proyecto.id}`;
-    await t.http().post(`${url}/consolidacion/confirmar`).set(coord.auth).expect(201);
+    await t
+      .http()
+      .post(`${url}/consolidacion/confirmar`)
+      .set(coord.auth)
+      .expect(201);
 
     const subfactores = factores.flatMap((f) => f.subfactores);
     expect(subfactores).toHaveLength(61);
@@ -95,13 +116,19 @@ describe('Performance RNF-04 (e2e, test database)', () => {
     });
 
     const inicio = performance.now();
-    const res = await t.http().post(`${url}/resultados`).set(coord.auth).expect(201);
+    const res = await t
+      .http()
+      .post(`${url}/resultados`)
+      .set(coord.auth)
+      .expect(201);
     const duracion = performance.now() - inicio;
 
     expect(res.body.softwares).toHaveLength(5);
     expect(res.body.softwares[0].scoresJurado).toHaveLength(10);
     expect(await t.prisma.resultadoJuradoFactor.count()).toBe(5 * 18 * 10);
-    console.log(`RNF-04: POST /resultados with 5 software x 10 judges took ${Math.round(duracion)} ms`);
+    console.log(
+      `RNF-04: POST /resultados with 5 software x 10 judges took ${Math.round(duracion)} ms`,
+    );
     expect(duracion).toBeLessThan(LIMITE_MS);
   }, 120_000);
 });

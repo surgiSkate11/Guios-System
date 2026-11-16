@@ -77,14 +77,18 @@ interface ProyectoResumen {
   dimensiones: { id: number; nombre: string }[];
   miRol: 'coordinador' | 'jurado';          // coordinator wins if both
   miEstadoJurado: EstadoJurado | null;      // my judge state, if I am a judge
+  tipoSoftware: string | null;              // e.g. "ERP"; context of the AI suggested importance
+  sugerenciaIs: { id: number; origen: 'ia' | 'respaldo'; modelo: string | null;
+    motivoRespaldo: string | null; creadoEn: string } | null;
 }
 ```
 
 | Method and path | Who | Body | Response |
 | --- | --- | --- | --- |
 | `GET /api/proyectos?estado=` | any | — | `ProyectoResumen[]` visible to me, newest first |
-| `POST /api/proyectos` | coordinador | `{ nombre, fechaInicio, fechaFin?, metodoConsolidacion, idDimensiones: number[] (≥1), softwares: { nombre, version?, licencia? }[] (≥1) }` | `201 ProyectoResumen` (estado `borrador`, my organization, current catalog version; creates one `proyecto_factor` per active factor of the chosen dimensions with the factor's IS and default scope) |
+| `POST /api/proyectos` | coordinador | `{ nombre, fechaInicio, fechaFin?, metodoConsolidacion, idDimensiones: number[] (≥1), softwares: { nombre, version?, licencia? }[] (≥1), tipoSoftware?: string (≤100) }` | `201 ProyectoResumen` (estado `borrador`, my organization, current catalog version; creates one `proyecto_factor` per active factor of the chosen dimensions with the factor's IS and default scope) |
 | `GET /api/proyectos/:id` | access | — | `ProyectoResumen` |
+| `GET /api/proyectos/:id/sugerencia-is` | access | — | `{ origen, modelo, motivoRespaldo, creadoEn, contexto: { tipoOrganizacion, tipoSoftware, factores }, factores: { idFactor, nombre, isBase, isIa: number | null, isFinal, ajustado, justificacion: string | null, confianza: number | null }[] }`; `404` if the project has none |
 | `PATCH /api/proyectos/:id` | coordinator | `{ nombre?, fechaFin?, metodoConsolidacion? }` | `ProyectoResumen` |
 | `POST /api/proyectos/:id/softwares` | coordinator | `{ nombre, version?, licencia? }` | `201 ProyectoResumen` |
 | `DELETE /api/proyectos/:id/softwares/:idSoftware` | coordinator | — | `ProyectoResumen` (only in `borrador`) |
@@ -283,3 +287,15 @@ anclas en curso"` (RNF-12); `409 "No hay un catálogo cargado"`. A failed measur
 
 The 18 thesis anchors (Table 7, 2008–2019: TC 243, NS 61) are seeded by the data migration
 `20261105040000_catalogo_inicial_tesis` and reproduce the cuts 1.86 / 3.65 / 4.78 of version 1.
+
+## A12. AI suggested importance per project
+
+When a project is created, the server asks the AI once for every factor of the chosen
+dimensions, with web search, giving the context (organization sector and `tipoSoftware`), the
+thesis IS and the anchors (TC, NS, IL) of 2008-2019 and 2020-2025. The answer must be JSON
+`{ factores: [{ id, is: 1-4 integer, justificacion, confianza: 0-1 }] }` with exactly one entry
+per factor; otherwise it is discarded. Each IS is capped at `IA_IS_DESVIO_MAX` levels (default 1)
+around the thesis IS. If the AI is not configured, fails, times out or answers invalid data, the
+thesis IS is used (`origen: 'respaldo'` with the reason). Every call is stored in
+`sugerencia_is` (prompt, model, answer, result, origin, date); identical contexts reuse the last
+valid AI answer. The resulting IS is the project's `impSugerida`; the catalog is not changed.

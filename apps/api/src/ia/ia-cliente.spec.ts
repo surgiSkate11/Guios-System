@@ -84,6 +84,21 @@ describe('GeminiCliente', () => {
     });
   });
 
+  it('enables Google Search grounding only when web search is requested', async () => {
+    const fetchMock = responder(200, {
+      candidates: [{ content: { parts: [{ text: 'ok' }] } }],
+    });
+    const cliente = new GeminiCliente('k', 'm');
+    await cliente.completar('i', 'e', { busquedaWeb: true });
+    await cliente.completar('i', 'e');
+    const cuerpos = fetchMock.mock.calls.map(
+      ([, init]) =>
+        JSON.parse((init as RequestInit).body as string) as { tools?: unknown },
+    );
+    expect(cuerpos[0].tools).toEqual([{ googleSearch: {} }]);
+    expect(cuerpos[1].tools).toBeUndefined();
+  });
+
   it('falls back to the next model when one is overloaded or unavailable', async () => {
     const fetchMock = jest
       .fn()

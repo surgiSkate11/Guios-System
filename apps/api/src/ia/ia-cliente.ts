@@ -2,9 +2,18 @@ import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 /** Large language model used to write text and classify evidence. Never computes numbers. */
+export interface OpcionesIa {
+  /** Let the model search the web (Gemini Google Search grounding); ignored by other providers. */
+  busquedaWeb?: boolean;
+}
+
 export interface IaCliente {
   readonly modelo: string;
-  completar(instrucciones: string, entrada: string): Promise<string>;
+  completar(
+    instrucciones: string,
+    entrada: string,
+    opciones?: OpcionesIa,
+  ): Promise<string>;
 }
 
 /** Injection token; resolves to null when no AI is configured (RNF-06 fallbacks apply). */
@@ -69,7 +78,11 @@ export class GeminiCliente implements IaCliente {
     readonly respaldo: string[] = [],
   ) {}
 
-  async completar(instrucciones: string, entrada: string): Promise<string> {
+  async completar(
+    instrucciones: string,
+    entrada: string,
+    opciones?: OpcionesIa,
+  ): Promise<string> {
     const modelos = [this.modelo, ...this.respaldo];
     let ultimoError: unknown;
     for (const [i, modelo] of modelos.entries()) {
@@ -81,6 +94,7 @@ export class GeminiCliente implements IaCliente {
           instrucciones,
           entrada,
           espera,
+          opciones,
         );
         if (i > 0)
           this.logger.warn(`Gemini answered with fallback model ${modelo}`);
@@ -98,6 +112,7 @@ export class GeminiCliente implements IaCliente {
     instrucciones: string,
     entrada: string,
     espera: number,
+    opciones?: OpcionesIa,
   ) {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(modelo)}:generateContent`;
     let res: Response;
@@ -112,6 +127,7 @@ export class GeminiCliente implements IaCliente {
         body: JSON.stringify({
           systemInstruction: { parts: [{ text: instrucciones }] },
           contents: [{ role: 'user', parts: [{ text: entrada }] }],
+          ...(opciones?.busquedaWeb ? { tools: [{ googleSearch: {} }] } : {}),
         }),
       });
     } catch (error) {

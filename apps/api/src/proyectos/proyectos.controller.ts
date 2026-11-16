@@ -51,6 +51,14 @@ export class ProyectosController {
     return this.proyectos.crear(usuario, body);
   }
 
+  @Get(':id/sugerencia-is')
+  sugerenciaIs(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() usuario: UsuarioPublico,
+  ) {
+    return this.proyectos.sugerenciaIs(id, usuario);
+  }
+
   @Get(':id')
   async obtener(
     @Param('id', ParseIntPipe) id: number,

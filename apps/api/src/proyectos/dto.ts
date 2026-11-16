@@ -69,6 +69,13 @@ export class CrearProyectoDto {
   @ValidateNested({ each: true })
   @Type(() => SoftwareDto)
   softwares!: SoftwareDto[];
+
+  /** Kind of software evaluated (e.g. ERP, LMS); context of the AI suggested importance. */
+  @IsOptional()
+  @Transform(trim)
+  @IsString()
+  @MaxLength(100)
+  tipoSoftware?: string;
 }
 
 export class ActualizarProyectoDto {
