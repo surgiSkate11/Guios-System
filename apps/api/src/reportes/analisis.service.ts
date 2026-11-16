@@ -21,11 +21,17 @@ export interface Analisis {
 const MODELO_RESPALDO = 'respaldo';
 
 const INSTRUCCIONES =
-  'Eres analista de adopción de software. Redacta en español, en 3 a 5 párrafos, un análisis ' +
-  'de los resultados de evaluación que recibes en JSON: compara los softwares, explica su nivel ' +
-  'de adopción (A, B o C), sus fortalezas, oportunidades, debilidades y amenazas y las banderas ' +
-  'de ambigüedad. Usa SOLO los números del JSON, sin calcular ni inventar otros. No decidas la ' +
-  'adopción: eso ya lo calculó el sistema.';
+  'Eres analista de adopción de software. Recibes en JSON los resultados ya calculados de una ' +
+  'evaluación GUIOS. Redacta en español neutro y en texto plano, sin markdown ni viñetas:\n' +
+  '- Tres párrafos de análisis: compara los softwares según su ranking y métrica, explica el ' +
+  'nivel de adopción (A, B o C) de cada uno con sus fortalezas, oportunidades, debilidades y ' +
+  'amenazas, y comenta las banderas de ambigüedad si las hay.\n' +
+  '- Un párrafo final que empiece con "Recomendaciones:" con acciones concretas para la ' +
+  'organización: cómo aprovechar las fortalezas y oportunidades y cómo mitigar las debilidades ' +
+  'y amenazas de cada software.\n' +
+  'Reglas: usa SOLO los números que aparecen en el JSON, sin calcular ni inventar otros; no ' +
+  'cambies la decisión de adopción, que ya calculó el sistema; refiérete a los jurados solo con ' +
+  'el nombre que trae el JSON (por ejemplo "Jurado 1").';
 
 const f2 = (n: number) => n.toFixed(2);
 

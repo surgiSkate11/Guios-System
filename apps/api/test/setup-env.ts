@@ -6,3 +6,8 @@ process.env.DATABASE_URL = testDatabaseUrl();
 
 // Rate limits are high in tests; the throttling test lowers it explicitly.
 process.env.AUTH_RATE_LIMIT ??= '1000';
+
+// Keep e2e tests away from real external services configured in apps/api/.env.
+// An empty value is not overridden by @nestjs/config and counts as "not configured".
+process.env.IA_API_KEY = '';
+process.env.SMTP_HOST = '';
