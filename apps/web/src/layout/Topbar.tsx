@@ -1,4 +1,4 @@
-import { Bell, ChevronDown, LogOut, Search } from 'lucide-react'
+import { Bell, ChevronDown, LogOut, Menu, Search } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { useAuth } from '../auth/auth-context'
@@ -73,7 +73,12 @@ function UserMenu({ userName, onLogout }: { userName: string; onLogout: () => vo
   )
 }
 
-export function Topbar() {
+interface TopbarProps {
+  menuAbierto: boolean
+  onAlternarMenu: () => void
+}
+
+export function Topbar({ menuAbierto, onAlternarMenu }: TopbarProps) {
   const { usuario, logout } = useAuth()
   const navigate = useNavigate()
 
@@ -83,7 +88,17 @@ export function Topbar() {
   }
 
   return (
-    <header className="flex h-20 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-8">
+    <header className="flex h-20 shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 sm:px-6 lg:px-8">
+      <button
+        type="button"
+        aria-label={menuAbierto ? 'Cerrar menú' : 'Abrir menú'}
+        aria-expanded={menuAbierto}
+        aria-controls="barra-lateral"
+        onClick={onAlternarMenu}
+        className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-brand-600 lg:hidden"
+      >
+        <Menu aria-hidden className="size-5" />
+      </button>
       <label className="relative w-full max-w-md">
         <span className="sr-only">Buscar proyectos</span>
         <Search

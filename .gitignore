@@ -28,3 +28,5 @@ Thumbs.db
 
 # Generated Prisma client
 apps/api/src/generated/
+# personal
+/doc/doc_juan/

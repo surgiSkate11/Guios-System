@@ -124,6 +124,7 @@ function Recientes({ proyectos }: { proyectos: ProyectoResumen[] }) {
         <p className="text-sm text-slate-500">Aún no tienes proyectos</p>
       ) : (
         <>
+          <div className="overflow-x-auto">
           <table aria-label="Proyectos recientes" className="w-full text-left text-sm">
             <thead className="bg-slate-50 text-xs font-semibold text-slate-600">
               <tr>
@@ -152,6 +153,7 @@ function Recientes({ proyectos }: { proyectos: ProyectoResumen[] }) {
               ))}
             </tbody>
           </table>
+          </div>
           <p className="mt-3 text-sm text-slate-500">
             Mostrando {recientes.length} de {proyectos.length}
           </p>

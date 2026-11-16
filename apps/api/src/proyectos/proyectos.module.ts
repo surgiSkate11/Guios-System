@@ -5,10 +5,11 @@ import {
   SolicitudesController,
 } from './proyectos.controller';
 import { ProyectosService } from './proyectos.service';
+import { SugerenciaIsService } from './sugerencia-is.service';
 
 @Module({
   controllers: [ProyectosController, SolicitudesController],
-  providers: [ProyectosService, AccesoService],
+  providers: [ProyectosService, AccesoService, SugerenciaIsService],
   exports: [AccesoService],
 })
 export class ProyectosModule {}

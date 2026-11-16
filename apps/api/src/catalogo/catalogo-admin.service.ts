@@ -123,6 +123,7 @@ export class CatalogoAdminService {
 
   async agregarSubfactor(idFactor: number, texto: string) {
     await this.factorExistente(idFactor);
+    await this.exigirSinIsAprobada(idFactor);
     return this.prisma.subfactor.create({
       data: { idFactor, texto },
       select: { id: true, texto: true, activo: true },
@@ -135,6 +136,7 @@ export class CatalogoAdminService {
   ) {
     const existe = await this.prisma.subfactor.findUnique({ where: { id } });
     if (!existe) throw new NotFoundException('Subfactor no encontrado');
+    await this.exigirSinIsAprobada(existe.idFactor);
     return this.prisma.subfactor.update({
       where: { id },
       data: dto,
@@ -333,5 +335,21 @@ export class CatalogoAdminService {
     const factor = await this.prisma.factor.findUnique({ where: { id } });
     if (!factor) throw new NotFoundException('Factor no encontrado');
     return factor;
+  }
+
+  /**
+   * The subfactor list of a factor with an approved IS is frozen: adding, renaming or
+   * deactivating one would leave the approved IS (and its r) stale. The factor has to be
+   * estimated again or created again with the full list (RF-22, RF-24).
+   */
+  private async exigirSinIsAprobada(idFactor: number): Promise<void> {
+    const aprobadas = await this.prisma.estimacionIs.count({
+      where: { idFactor, estado: 'aprobada' },
+    });
+    if (aprobadas > 0) {
+      throw new ConflictException(
+        'El factor tiene una IS aprobada; reestímalo o vuelve a darlo de alta con la lista completa de subfactores',
+      );
+    }
   }
 }

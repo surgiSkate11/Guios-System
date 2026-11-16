@@ -96,6 +96,7 @@ export function EvaluacionesPage() {
           {visibles.length === 0 ? (
             <p className="text-sm text-slate-500">No hay proyectos en este estado</p>
           ) : (
+            <div className="overflow-x-auto">
             <table aria-label="Mis evaluaciones" className="w-full text-left text-sm">
               <thead className="bg-slate-50 text-xs font-semibold text-slate-600">
                 <tr>
@@ -136,6 +137,7 @@ export function EvaluacionesPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           )}
           <p className="mt-3 text-sm text-slate-500">
             Mostrando {visibles.length} de {proyectos.length}

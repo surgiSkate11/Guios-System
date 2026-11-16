@@ -166,6 +166,7 @@ function Detalle({ inicial }: { inicial: Estimacion }) {
 
       <section className="mb-5 rounded-2xl bg-white p-5">
         <h2 className="mb-3 font-semibold text-slate-900">Subfactores y citas</h2>
+        <div className="overflow-x-auto">
         <table aria-label="Citas por subfactor" className="w-full text-sm">
           <thead className="bg-slate-50 text-left text-xs text-slate-500">
             <tr>
@@ -199,6 +200,7 @@ function Detalle({ inicial }: { inicial: Estimacion }) {
             ))}
           </tbody>
         </table>
+        </div>
       </section>
 
       <div className="mb-5">

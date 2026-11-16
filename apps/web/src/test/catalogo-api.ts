@@ -1,5 +1,12 @@
 import { avisosEstimacion } from '@guios/calculo'
-import type { CatalogoVigente, Estimacion, FactorAdmin } from '../api/catalogo'
+import type {
+  AnclaMedida,
+  CatalogoVigente,
+  DispersionAnclas,
+  Estimacion,
+  FactorAdmin,
+  MedicionAnclas,
+} from '../api/catalogo'
 import type { FakeHandler } from './fake-api'
 
 /** Cut points of the specification example (section 6): rq1 1.56, rq2 2.00, rq3 2.10. */
@@ -111,15 +118,68 @@ export function estimacionDe(id: number, nombre: string, subfactores: Cita[]): E
   })
 }
 
+/** Min, max, median, mean and standard deviation of the anchors, as the server reports them. */
+function dispersionDe(anclas: readonly AnclaMedida[]): DispersionAnclas | null {
+  if (anclas.length === 0) return null
+  const valores = anclas.map((ancla) => ancla.r).sort((a, b) => a - b)
+  const promedio = valores.reduce((suma, valor) => suma + valor, 0) / valores.length
+  const medio = Math.floor(valores.length / 2)
+  const mediana =
+    valores.length % 2 === 0 ? (valores[medio - 1] + valores[medio]) / 2 : valores[medio]
+  const varianza =
+    valores.reduce((suma, valor) => suma + (valor - promedio) ** 2, 0) / valores.length
+  return {
+    minimo: valores[0],
+    maximo: valores[valores.length - 1],
+    mediana,
+    promedio,
+    desviacion: Math.sqrt(varianza),
+  }
+}
+
+/** Anchors already published with version 1: only Compatibility is measured (33 / 8). */
+export function anclasDeTesis(): AnclaMedida[] {
+  return [{ idFactor: 1, nombre: 'Compatibilidad', citas: 33, ns: 8, r: 33 / 8 }]
+}
+
 /**
- * In-memory fake of A2 (current catalog) and A10 (factor creation, estimations). An AI
- * estimation stays `en_curso` for `pasosIa` polls, then becomes a proposal.
+ * In-memory fake of A2 (current catalog), A10 (factor creation, estimations) and A11 (anchor
+ * measurement). An AI estimation stays `en_curso` for `pasosIa` polls and an anchor measurement
+ * for `pasosAnclas` polls, then both finish.
  */
-export function catalogoApi(opciones: { estimaciones?: Estimacion[]; iaConfigurada?: boolean; pasosIa?: number } = {}) {
+export function catalogoApi(
+  opciones: {
+    estimaciones?: Estimacion[]
+    iaConfigurada?: boolean
+    pasosIa?: number
+    /** Anchors already published with the current version. */
+    anclas?: AnclaMedida[]
+    /** GET polls an anchor measurement stays `en_curso` before publishing (default 1). */
+    pasosAnclas?: number
+    /** The server believes a measurement is running, so POST answers 409. */
+    medicionEnCurso?: boolean
+  } = {},
+) {
   const estimaciones = (opciones.estimaciones ?? []).map((item) => structuredClone(item))
   const factores = factoresAdmin()
   const pasos = new Map<number, number>()
+  const anclas = (opciones.anclas ?? anclasDeTesis()).map((ancla) => ({ ...ancla }))
   let siguiente = 900
+
+  const sinAncla = () =>
+    factores.filter((item) => item.activo && !anclas.some((ancla) => ancla.idFactor === item.id))
+  const fotografiar = (): MedicionAnclas => ({
+    estado: 'inactiva',
+    progreso: null,
+    factorActual: null,
+    error: null,
+    version: { id: 1, numero: 1 },
+    cortes: anclas.length > 0 ? CORTES : null,
+    dispersion: dispersionDe(anclas),
+    anclas: anclas.map((ancla) => ({ ...ancla })),
+  })
+  let medicion = fotografiar()
+  let sondeos = 0
 
   const buscar = (id: number) => estimaciones.find((item) => item.id === id)
   const error = (status: number, message: string) => ({ status, body: { statusCode: status, message } })
@@ -128,6 +188,45 @@ export function catalogoApi(opciones: { estimaciones?: Estimacion[]; iaConfigura
     const datos = (body ?? {}) as Record<string, unknown>
     if (method === 'GET' && path === '/api/catalogo/vigente') return { status: 200, body: VIGENTE }
     if (method === 'GET' && path === '/api/catalogo/versiones') return { status: 200, body: [] }
+    if (method === 'GET' && path === '/api/catalogo/anclas') {
+      if (medicion.estado === 'en_curso') {
+        sondeos += 1
+        const nuevos = sinAncla()
+        if (sondeos >= (opciones.pasosAnclas ?? 1)) {
+          for (const factor of nuevos) {
+            const ns = Math.max(1, factor.subfactores.filter((sub) => sub.activo).length)
+            const citas = ns * 2 + sondeos
+            anclas.push({ idFactor: factor.id, nombre: factor.nombre, citas, ns, r: citas / ns })
+          }
+          medicion = { ...fotografiar(), estado: 'completada', version: { id: 2, numero: 2 } }
+        } else {
+          medicion = {
+            ...medicion,
+            progreso: { hechos: sondeos, total: medicion.progreso?.total ?? nuevos.length },
+            factorActual: nuevos[sondeos - 1]?.nombre ?? null,
+          }
+        }
+      }
+      return { status: 200, body: structuredClone(medicion) }
+    }
+    if (method === 'POST' && path === '/api/catalogo/anclas/medir') {
+      if (!opciones.iaConfigurada) return error(409, 'La medición de anclas requiere la IA configurada')
+      if (opciones.medicionEnCurso || medicion.estado === 'en_curso') {
+        return error(409, 'Ya hay una medición de anclas en curso')
+      }
+      const nuevos = sinAncla()
+      if (nuevos.length === 0) {
+        return error(400, 'Todos los factores activos ya tienen ancla; no hay factores nuevos por medir')
+      }
+      sondeos = 0
+      medicion = {
+        ...fotografiar(),
+        estado: 'en_curso',
+        progreso: { hechos: 0, total: nuevos.length },
+        factorActual: nuevos[0].nombre,
+      }
+      return { status: 202, body: structuredClone(medicion) }
+    }
     if (method === 'GET' && path === '/api/catalogo/estimaciones') {
       const estado = new URLSearchParams(search).get('estado')
       return { status: 200, body: estimaciones.filter((item) => !estado || item.estado === estado) }
@@ -223,5 +322,5 @@ export function catalogoApi(opciones: { estimaciones?: Estimacion[]; iaConfigura
     }
     return undefined
   }
-  return { handler, estimaciones, factores }
+  return { handler, estimaciones, factores, anclas }
 }

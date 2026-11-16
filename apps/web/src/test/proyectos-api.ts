@@ -29,6 +29,8 @@ export function proyecto(sobrescribir: Partial<ProyectoResumen> = {}): ProyectoR
     dimensiones: DIMENSIONES,
     miRol: 'coordinador',
     miEstadoJurado: null,
+    tipoSoftware: null,
+    sugerenciaIs: null,
     ...sobrescribir,
   }
 }

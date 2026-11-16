@@ -72,6 +72,7 @@ interface Datos {
   fechaFin: string
   metodoConsolidacion: Metodo
   idDimensiones: number[]
+  tipoSoftware: string
 }
 
 const DATOS_INICIALES: Datos = {
@@ -80,6 +81,7 @@ const DATOS_INICIALES: Datos = {
   fechaFin: '',
   metodoConsolidacion: 'mediana',
   idDimensiones: [],
+  tipoSoftware: '',
 }
 
 function alternar(lista: number[], id: number): number[] {
@@ -129,6 +131,7 @@ export function NuevoProyectoPage() {
           .filter((dimension) => datos.idDimensiones.includes(dimension.id))
           .map((dimension) => dimension.id),
         softwares,
+        ...(datos.tipoSoftware.trim() !== '' && { tipoSoftware: datos.tipoSoftware.trim() }),
       })
       registrar(proyecto)
       setCreado(proyecto)
@@ -194,6 +197,23 @@ export function NuevoProyectoPage() {
                   onChange={(event) => setDatos({ ...datos, fechaFin: event.target.value })}
                 />
               </label>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label htmlFor="tipo-software" className="text-sm font-medium text-slate-700">
+                Tipo de software (opcional)
+              </label>
+              <input
+                id="tipo-software"
+                className={campoClass}
+                maxLength={100}
+                placeholder="Por ejemplo: ERP, LMS, CRM"
+                aria-describedby="tipo-software-ayuda"
+                value={datos.tipoSoftware}
+                onChange={(event) => setDatos({ ...datos, tipoSoftware: event.target.value })}
+              />
+              <p id="tipo-software-ayuda" className="text-xs text-slate-500">
+                Con el tipo de organización, se usa para que la IA ajuste la importancia sugerida.
+              </p>
             </div>
             <label className="flex flex-col gap-1 text-sm font-medium text-slate-700">
               Método de consolidación
@@ -275,6 +295,12 @@ export function NuevoProyectoPage() {
               </button>
             </div>
           </div>
+          {ocupado && (
+            <p aria-live="polite" className="mt-4 text-sm text-slate-600">
+              Creando el proyecto: la IA está calculando la importancia sugerida de cada factor.
+              Puede tardar hasta dos minutos.
+            </p>
+          )}
         </Tarjeta>
       )}
 

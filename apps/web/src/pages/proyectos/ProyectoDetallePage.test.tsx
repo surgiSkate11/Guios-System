@@ -192,3 +192,82 @@ describe('ProyectoDetallePage as judge', () => {
     ).not.toBeInTheDocument()
   })
 })
+
+describe('ProyectoDetallePage suggested importance (A12)', () => {
+  const SUGERENCIA = {
+    origen: 'ia',
+    modelo: 'gemini-3.5-flash',
+    motivoRespaldo: null,
+    creadoEn: '2026-11-16T10:00:00.000Z',
+    factores: [
+      {
+        idFactor: 1,
+        nombre: 'Usabilidad',
+        isBase: 2,
+        isIa: 4,
+        isFinal: 3,
+        ajustado: true,
+        justificacion: 'Los ERP exigen interfaces simples',
+        confianza: 0.85,
+      },
+    ],
+  }
+  const conSugerencia =
+    (cuerpo: unknown) => (h: ReturnType<typeof proyectosApi>['handler']) => (req: Parameters<typeof h>[0]) =>
+      req.method === 'GET' && req.path === '/api/proyectos/10/sugerencia-is' ? { status: 200, body: cuerpo } : h(req)
+
+  it('shows that the AI computed the IS, with each justification and the cap', async () => {
+    abrir(
+      proyecto({
+        tipoSoftware: 'ERP',
+        sugerenciaIs: { id: 1, origen: 'ia', modelo: 'gemini-3.5-flash', motivoRespaldo: null, creadoEn: SUGERENCIA.creadoEn },
+      }),
+      COORDINADOR,
+      conSugerencia(SUGERENCIA),
+    )
+    const seccion = (await screen.findByRole('heading', { level: 2, name: 'Importancia sugerida' })).closest('section')!
+    expect(within(seccion).getByText('Calculada con IA (gemini-3.5-flash) para software ERP')).toBeInTheDocument()
+    const fila = await within(seccion).findByRole('row', { name: /Usabilidad/ })
+    expect(within(fila).getAllByRole('cell').map((c) => c.textContent)).toEqual([
+      'Usabilidad',
+      'Opcional',
+      'Fundamental',
+      'Importante (ajustada a ±1)',
+      'Los ERP exigen interfaces simples',
+      '85 %',
+    ])
+  })
+
+  it('says when the AI could not search the web', async () => {
+    abrir(
+      proyecto({
+        tipoSoftware: 'ERP',
+        sugerenciaIs: { id: 1, origen: 'ia', modelo: 'gemini-3.5-flash', motivoRespaldo: null, creadoEn: SUGERENCIA.creadoEn },
+      }),
+      COORDINADOR,
+      conSugerencia({ ...SUGERENCIA, contexto: { busquedaWeb: false } }),
+    )
+    expect(
+      await screen.findByText(/sin búsqueda web: el plan de IA no la incluye/),
+    ).toBeInTheDocument()
+  })
+
+  it('explains the fallback to the thesis IS', async () => {
+    abrir(
+      proyecto({
+        sugerenciaIs: { id: 2, origen: 'respaldo', modelo: null, motivoRespaldo: 'IA no configurada', creadoEn: SUGERENCIA.creadoEn },
+      }),
+      COORDINADOR,
+      conSugerencia({ ...SUGERENCIA, origen: 'respaldo', modelo: null, motivoRespaldo: 'IA no configurada' }),
+    )
+    expect(
+      await screen.findByText('Se usaron los valores de la tesis (IA no configurada)'),
+    ).toBeInTheDocument()
+  })
+
+  it('hides the section for projects created before the AI suggestion existed', async () => {
+    abrir(proyecto())
+    expect(await screen.findByRole('heading', { level: 2, name: 'Datos del proyecto' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { level: 2, name: 'Importancia sugerida' })).not.toBeInTheDocument()
+  })
+})

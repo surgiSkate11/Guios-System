@@ -22,10 +22,14 @@ const CANDIDATOS_POR_SUBFACTOR = 10;
 const PERIODO = { desde: 2020, hasta: 2025 };
 
 const INSTRUCCIONES =
-  'You classify scientific evidence. For each candidate article, decide whether its abstract ' +
-  'supports the given software-evaluation subfactor. Answer ONLY a JSON array of objects ' +
-  '{"i": number, "respalda": boolean, "cita": string}, where "cita" is a short sentence copied ' +
-  'LITERALLY from the abstract that supports the subfactor (empty when respalda is false).';
+  'You classify scientific evidence for a software-evaluation guide. For each candidate ' +
+  'article, decide whether its abstract supports the given subfactor of the given factor. ' +
+  'Mark respalda true only when the abstract clearly reports evidence about that subfactor; ' +
+  'when unsure, mark it false. Answer ONLY a JSON array of objects ' +
+  '{"i": number, "respalda": boolean, "cita": string}, one per candidate, with no text, ' +
+  'markdown or code fences around it. "cita" must be a complete sentence or clause of at least ' +
+  'eight words copied LITERALLY from the abstract (same words and order) that supports the ' +
+  'subfactor, and an empty string when respalda is false.';
 
 interface Clasificacion {
   i: number;

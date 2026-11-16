@@ -339,6 +339,63 @@ describe('Catalog administration and IS (e2e, test database)', () => {
       .expect(404);
   });
 
+  it('freezes the subfactor list once the IS is approved so it never goes stale', async () => {
+    const est = (await crear(nuevo([3, 2, 2])).expect(201)).body;
+    const idFactor = est.factor.id;
+    // While the IS is only a proposal the list can still be completed.
+    const propio = await t
+      .http()
+      .post(`/api/catalogo/factores/${idFactor}/subfactores`)
+      .set(admin.auth)
+      .send({ texto: 'Documentación del modelo' })
+      .expect(201);
+    await t
+      .http()
+      .post(`/api/catalogo/estimaciones/${est.id}/aprobar`)
+      .set(admin.auth)
+      .send({})
+      .expect(200);
+
+    const agregar = await t
+      .http()
+      .post(`/api/catalogo/factores/${idFactor}/subfactores`)
+      .set(admin.auth)
+      .send({ texto: 'Un subfactor más' })
+      .expect(409);
+    expect(agregar.body.message).toContain('IS aprobada');
+    expect(agregar.body.message).toContain('lista completa de subfactores');
+    const renombrar = await t
+      .http()
+      .patch(`/api/catalogo/subfactores/${propio.body.id}`)
+      .set(admin.auth)
+      .send({ texto: 'Renombrado' })
+      .expect(409);
+    expect(renombrar.body.statusCode).toBe(409);
+    await t
+      .http()
+      .patch(`/api/catalogo/subfactores/${propio.body.id}`)
+      .set(admin.auth)
+      .send({ activo: false })
+      .expect(409);
+
+    // Nothing was touched: the approved IS keeps its subfactors.
+    const filas = await t.prisma.subfactor.findMany({ where: { idFactor } });
+    expect(filas.map((f) => f.texto)).toEqual([
+      'Subfactor 1',
+      'Subfactor 2',
+      'Subfactor 3',
+      'Documentación del modelo',
+    ]);
+    expect(filas.every((f) => f.activo)).toBe(true);
+    // The seeded factors have no approved IS, so their list stays editable.
+    await t
+      .http()
+      .post(`/api/catalogo/factores/${cat.usabilidad.id}/subfactores`)
+      .set(admin.auth)
+      .send({ texto: 'Accesibilidad' })
+      .expect(201);
+  });
+
   it('AI estimation answers 409 when no AI is configured', async () => {
     const res = await t
       .http()

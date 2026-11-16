@@ -5,6 +5,7 @@ import {
   agregarSoftware,
   cambiarEstadoProyecto,
   obtenerProyecto,
+  obtenerSugerenciaIs,
   quitarSoftware,
   type NuevoSoftware,
   type ProyectoResumen,
@@ -17,6 +18,66 @@ import { EstadoProyectoEtiqueta } from './Etiquetas'
 import { ETIQUETA_ESTADO_JURADO, ETIQUETA_METODO, formatearFecha } from './formato'
 import { JuradosPanel } from './JuradosPanel'
 import { SoftwareForm, SoftwareLista } from './SoftwareForm'
+
+const ETIQUETA_IMPORTANCIA: Record<number, string> = {
+  1: 'Irrelevante',
+  2: 'Opcional',
+  3: 'Importante',
+  4: 'Fundamental',
+}
+
+/** How the project suggested importances were obtained: AI with justifications or the thesis. */
+function SugerenciaIsSeccion({ proyecto }: { proyecto: ProyectoResumen }) {
+  const cargar = useCallback(() => obtenerSugerenciaIs(proyecto.id), [proyecto.id])
+  const { datos, error, cargando } = useCarga(cargar)
+  const resumen = proyecto.sugerenciaIs!
+  const descripcion =
+    resumen.origen === 'ia'
+      ? `Calculada con IA (${resumen.modelo ?? 'modelo desconocido'})` +
+        (proyecto.tipoSoftware ? ` para software ${proyecto.tipoSoftware}` : '')
+      : `Se usaron los valores de la tesis (${resumen.motivoRespaldo ?? 'sin motivo registrado'})`
+  return (
+    <Seccion titulo="Importancia sugerida">
+      <p className="mb-4 text-sm text-slate-600">
+        {descripcion}
+        {datos?.contexto?.busquedaWeb === false &&
+          ' · sin búsqueda web: el plan de IA no la incluye; se usaron la tesis y las anclas'}
+      </p>
+      <EstadoCarga cargando={cargando} error={error} />
+      {datos && (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[640px] text-left text-sm">
+            <thead className="text-xs text-slate-500">
+              <tr>
+                <th className="py-2 pr-4 font-semibold">Factor</th>
+                <th className="py-2 pr-4 font-semibold">IS de la tesis</th>
+                <th className="py-2 pr-4 font-semibold">IS propuesta por IA</th>
+                <th className="py-2 pr-4 font-semibold">IS aplicada</th>
+                <th className="py-2 pr-4 font-semibold">Justificación</th>
+                <th className="py-2 font-semibold">Confianza</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {datos.factores.map((f) => (
+                <tr key={f.idFactor}>
+                  <td className="py-2 pr-4 font-medium text-slate-800">{f.nombre}</td>
+                  <td className="py-2 pr-4">{ETIQUETA_IMPORTANCIA[f.isBase]}</td>
+                  <td className="py-2 pr-4">{f.isIa === null ? '—' : ETIQUETA_IMPORTANCIA[f.isIa]}</td>
+                  <td className="py-2 pr-4">
+                    {ETIQUETA_IMPORTANCIA[f.isFinal]}
+                    {f.ajustado && ' (ajustada a ±1)'}
+                  </td>
+                  <td className="py-2 pr-4 text-slate-600">{f.justificacion ?? '—'}</td>
+                  <td className="py-2">{f.confianza === null ? '—' : `${Math.round(f.confianza * 100)} %`}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </Seccion>
+  )
+}
 
 function Seccion({ titulo, children }: { titulo: string; children: ReactNode }) {
   return (
@@ -175,6 +236,7 @@ function Detalle({ id }: { id: number }) {
           <Dato nombre="Dimensiones" valor={proyecto.dimensiones.map((item) => item.nombre).join(', ')} />
         </dl>
       </Seccion>
+      {proyecto.sugerenciaIs && <SugerenciaIsSeccion proyecto={proyecto} />}
       <Softwares proyecto={proyecto} onCambio={alCambiar} />
       <Seccion titulo="Jurados">
         <JuradosPanel

@@ -56,6 +56,7 @@ function TablaImportancias({ proyecto }: { proyecto: ProyectoResumen }) {
             </span>
           </div>
         </div>
+        <div className="overflow-x-auto">
         <table aria-label="Factores de evaluación" className="w-full text-sm">
           <thead className="bg-slate-50 text-left text-xs text-slate-500">
             <tr>
@@ -109,6 +110,7 @@ function TablaImportancias({ proyecto }: { proyecto: ProyectoResumen }) {
             ))}
           </tbody>
         </table>
+        </div>
       </section>
     </>
   )

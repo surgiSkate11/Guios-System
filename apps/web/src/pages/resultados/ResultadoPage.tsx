@@ -20,6 +20,7 @@ function TablaFoda({ cabeceras, children }: { cabeceras: string[]; children: Rea
   return (
     <section className="rounded-2xl bg-white p-5">
       <h2 className="mb-4 font-semibold text-slate-900">Análisis FODA por factor</h2>
+      <div className="overflow-x-auto">
       <table aria-label="Análisis FODA por factor" className="w-full text-sm">
         <thead className="bg-slate-50 text-left text-xs text-slate-500">
           <tr>
@@ -32,6 +33,7 @@ function TablaFoda({ cabeceras, children }: { cabeceras: string[]; children: Rea
         </thead>
         <tbody>{children}</tbody>
       </table>
+      </div>
     </section>
   )
 }

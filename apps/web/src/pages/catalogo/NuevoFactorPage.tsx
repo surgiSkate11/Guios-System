@@ -135,7 +135,7 @@ export function NuevoFactorPage() {
           </label>
         </section>
 
-        <section className="rounded-2xl bg-white p-5">
+        <section className="rounded-2xl bg-white p-5  ml-[100px]">
           <h2 className="mb-3 font-semibold text-slate-900">Subfactores y citas</h2>
           <ul className="space-y-3">
             {filas.map((fila, indice) => {

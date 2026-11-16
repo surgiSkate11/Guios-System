@@ -98,6 +98,12 @@ enum EstadoEstimacionIs {
   rechazada
 }
 
+/// Whether a project's suggested importances came from the AI or from the thesis values.
+enum OrigenSugerenciaIs {
+  ia
+  respaldo
+}
+
 enum ModoEstimacionIs {
   manual
   ia
@@ -165,18 +171,19 @@ model TokenRecuperacion {
 
 /// Real catalog versioning (RF-17): projects keep the version they started with.
 model CatalogoVersion {
-  id          Int                  @id @default(autoincrement())
-  numero      Int                  @unique
-  fecha       DateTime             @default(now())
-  creadoPorId Int?                 @map("creado_por")
-  creadoPor   Usuario?             @relation(fields: [creadoPorId], references: [id])
-  motivo      String
+  id            Int                  @id @default(autoincrement())
+  numero        Int                  @unique
+  fecha         DateTime             @default(now())
+  creadoPorId   Int?                 @map("creado_por")
+  creadoPor     Usuario?             @relation(fields: [creadoPorId], references: [id])
+  motivo        String
   /// Current IL cut points (RN-02).
-  rq1         Float
-  rq2         Float
-  rq3         Float
-  proyectos   ProyectoEvaluacion[]
-  anclas      MedicionAncla[]
+  rq1           Float
+  rq2           Float
+  rq3           Float
+  proyectos     ProyectoEvaluacion[]
+  anclas        MedicionAncla[]
+  sugerenciasIs SugerenciaIs[]
 
   @@map("catalogo_version")
 }
@@ -329,6 +336,10 @@ model ProyectoEvaluacion {
   informes            InformeEvaluacion[]
   analisisIa          AnalisisIa[]
   parametros          ParametroAnalisis?
+  /// Kind of software being evaluated (e.g. ERP, LMS); context of the AI suggested importance.
+  tipoSoftware        String?             @map("tipo_software")
+  idSugerenciaIs      Int?                @map("id_sugerencia_is")
+  sugerenciaIs        SugerenciaIs?       @relation(fields: [idSugerenciaIs], references: [id])
 
   @@index([idOrganizacion])
   @@index([idCoordinador])
@@ -534,4 +545,29 @@ model ParametroAnalisis {
   metodoConsolidacion   MetodoConsolidacion @default(mediana) @map("metodo_consolidacion")
 
   @@map("parametro_analisis")
+}
+
+/// Audit log of every AI suggested-importance call (one call for all factors of a project).
+/// Identical contexts reuse the stored answer (cache) through the clave field.
+model SugerenciaIs {
+  id                Int                  @id @default(autoincrement())
+  /// SHA-256 of the evaluation context; cache key.
+  clave             String
+  contexto          Json
+  idCatalogoVersion Int                  @map("id_catalogo_version")
+  catalogoVersion   CatalogoVersion      @relation(fields: [idCatalogoVersion], references: [id])
+  /// Full prompt sent to the model (instructions and input).
+  prompt            String
+  modelo            String?
+  /// Raw answer of the model, if any.
+  respuesta         String?
+  /// Per factor: base IS, AI IS, applied IS, justification, confidence and whether it was capped.
+  resultado         Json
+  origen            OrigenSugerenciaIs
+  motivoRespaldo    String?              @map("motivo_respaldo")
+  creadoEn          DateTime             @default(now()) @map("creado_en")
+  proyectos         ProyectoEvaluacion[]
+
+  @@index([clave])
+  @@map("sugerencia_is")
 }

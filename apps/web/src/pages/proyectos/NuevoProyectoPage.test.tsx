@@ -147,6 +147,21 @@ describe('NuevoProyectoPage', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Sistema de inventario' })).toBeInTheDocument()
   }, 15_000) // Many typed steps; the default 5 s timeout flakes when the whole suite runs in parallel.
 
+  it('sends the software type that frames the AI suggested importance', async () => {
+    const user = userEvent.setup()
+    const { requests } = abrir()
+    await llenarDatos(user)
+    await user.type(screen.getByLabelText('Tipo de software (opcional)'), ' ERP ')
+    await user.click(screen.getByRole('button', { name: 'Siguiente' }))
+    await agregarSoftware(user, 'Software A')
+    await user.click(screen.getByRole('button', { name: 'Siguiente' }))
+
+    expect(await screen.findByRole('heading', { level: 2, name: 'Jurados' })).toBeInTheDocument()
+    expect(requests.find((r) => r.method === 'POST' && r.path === '/api/proyectos')).toMatchObject({
+      body: { tipoSoftware: 'ERP' },
+    })
+  })
+
   it('shows every server validation message and stays on the softwares step', async () => {
     const user = userEvent.setup()
     const { handler } = proyectosApi([], COORDINADOR)

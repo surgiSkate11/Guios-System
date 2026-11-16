@@ -43,6 +43,16 @@ export interface ProyectoResumen {
   /** Coordinator wins when the user is both. */
   miRol: 'coordinador' | 'jurado'
   miEstadoJurado: EstadoJurado | null
+  /** Kind of software evaluated; context of the AI suggested importance. */
+  tipoSoftware: string | null
+  /** How the suggested importances of the project were obtained (A12). */
+  sugerenciaIs: {
+    id: number
+    origen: 'ia' | 'respaldo'
+    modelo: string | null
+    motivoRespaldo: string | null
+    creadoEn: string
+  } | null
 }
 
 export interface NuevoSoftware {
@@ -58,6 +68,7 @@ export interface NuevoProyecto {
   metodoConsolidacion: Metodo
   idDimensiones: number[]
   softwares: NuevoSoftware[]
+  tipoSoftware?: string
 }
 
 /** Part of GET /api/catalogo/vigente (A2) the project form needs. */
@@ -167,4 +178,30 @@ export function actualizarProyecto(
 
 export function listarProyectosCerrados(): Promise<ProyectoResumen[]> {
   return apiFetch<ProyectoResumen[]>('/proyectos?estado=cerrado', { token: leerToken() })
+}
+
+/** Suggested importance of one factor in a project (GET /api/proyectos/:id/sugerencia-is). */
+export interface FactorSugerido {
+  idFactor: number
+  nombre: string
+  isBase: number
+  isIa: number | null
+  isFinal: number
+  ajustado: boolean
+  justificacion: string | null
+  confianza: number | null
+}
+
+export interface SugerenciaIs {
+  origen: 'ia' | 'respaldo'
+  modelo: string | null
+  motivoRespaldo: string | null
+  creadoEn: string
+  /** Context sent to the AI; busquedaWeb is false when the plan rejected web search. */
+  contexto?: { busquedaWeb?: boolean }
+  factores: FactorSugerido[]
+}
+
+export function obtenerSugerenciaIs(id: number): Promise<SugerenciaIs> {
+  return apiFetch<SugerenciaIs>(`/proyectos/${id}/sugerencia-is`, { token: leerToken() })
 }

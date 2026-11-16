@@ -77,14 +77,18 @@ interface ProyectoResumen {
   dimensiones: { id: number; nombre: string }[];
   miRol: 'coordinador' | 'jurado';          // coordinator wins if both
   miEstadoJurado: EstadoJurado | null;      // my judge state, if I am a judge
+  tipoSoftware: string | null;              // e.g. "ERP"; context of the AI suggested importance
+  sugerenciaIs: { id: number; origen: 'ia' | 'respaldo'; modelo: string | null;
+    motivoRespaldo: string | null; creadoEn: string } | null;
 }
 ```
 
 | Method and path | Who | Body | Response |
 | --- | --- | --- | --- |
 | `GET /api/proyectos?estado=` | any | — | `ProyectoResumen[]` visible to me, newest first |
-| `POST /api/proyectos` | coordinador | `{ nombre, fechaInicio, fechaFin?, metodoConsolidacion, idDimensiones: number[] (≥1), softwares: { nombre, version?, licencia? }[] (≥1) }` | `201 ProyectoResumen` (estado `borrador`, my organization, current catalog version; creates one `proyecto_factor` per active factor of the chosen dimensions with the factor's IS and default scope) |
+| `POST /api/proyectos` | coordinador | `{ nombre, fechaInicio, fechaFin?, metodoConsolidacion, idDimensiones: number[] (≥1), softwares: { nombre, version?, licencia? }[] (≥1), tipoSoftware?: string (≤100) }` | `201 ProyectoResumen` (estado `borrador`, my organization, current catalog version; creates one `proyecto_factor` per active factor of the chosen dimensions with the factor's IS and default scope) |
 | `GET /api/proyectos/:id` | access | — | `ProyectoResumen` |
+| `GET /api/proyectos/:id/sugerencia-is` | access | — | `{ origen, modelo, motivoRespaldo, creadoEn, contexto: { tipoOrganizacion, tipoSoftware, factores }, factores: { idFactor, nombre, isBase, isIa: number | null, isFinal, ajustado, justificacion: string | null, confianza: number | null }[] }`; `404` if the project has none |
 | `PATCH /api/proyectos/:id` | coordinator | `{ nombre?, fechaFin?, metodoConsolidacion? }` | `ProyectoResumen` |
 | `POST /api/proyectos/:id/softwares` | coordinator | `{ nombre, version?, licencia? }` | `201 ProyectoResumen` |
 | `DELETE /api/proyectos/:id/softwares/:idSoftware` | coordinator | — | `ProyectoResumen` (only in `borrador`) |
@@ -215,3 +219,83 @@ interface Estimacion {
 Only a `propuesta` can be approved or rejected (`409`). The IS is always computed by the server with
 `@guios/calculo` (RN-01, RN-02, RN-04); the AI only finds and classifies articles (RNF-11).
 Existing projects keep their IS snapshot (HU-24).
+
+### A10.1 Factor and subfactor entry flow (RF-18, RF-22, RF-24)
+
+1. `POST /api/catalogo/factores` carries the dimension, the factor name, the default scope and **at
+   least one subfactor** (text plus its citation count; DOIs are optional, but a cited subfactor
+   without a DOI raises `sinRespaldoVerificable`). The API computes TC (sum of citations), NS
+   (number of subfactors), `r = TC / NS`, IL and the proposed IS with `@guios/calculo`. The response
+   is an `Estimacion` in state `propuesta` and **no catalog version is published**; the factor is
+   created `activo: false`.
+2. `POST /api/catalogo/factores/:id/estimaciones` is the same in `modo: 'ia'`: the AI only finds and
+   classifies articles per subfactor (RNF-11), while TC, NS, r, IL and IS are still computed by the
+   server. Poll `GET /api/catalogo/estimaciones/:id` until `propuesta`, `aprobada` or `rechazada`.
+3. While the estimation is `propuesta` the subfactor list can still be completed
+   (`POST /api/catalogo/factores/:id/subfactores`). Prefer sending every subfactor when the factor is
+   created: one submission, one estimation, one version.
+4. `POST /api/catalogo/estimaciones/:id/aprobar` activates the factor and publishes a new catalog
+   version **with the same cuts** (`rq1`–`rq3` are not recalculated). Approving a corrected citation
+   count or an IS different from the computed one requires a justification (HU-23, HU-24).
+5. Once a factor has an IS `aprobada` its subfactor list is frozen: adding, renaming or deactivating
+   a subfactor answers `409 "El factor tiene una IS aprobada; reestímalo o vuelve a darlo de alta con
+   la lista completa de subfactores"`, because the approved IS would go stale. Editing the name, the
+   default scope or `activo` of the factor is still allowed (RF-18).
+6. Only `POST /api/catalogo/anclas/medir` (A11) recalculates the cuts, and it measures only the
+   factors that still have no anchor. A new factor therefore gets its IL and IS from the current
+   cuts; the cuts change only when the set of anchors changes.
+
+## A11. Anchor measurement (role `administrador`, spec section 6, RNF-03, RNF-12)
+
+```ts
+interface AnclaMedida {
+  idFactor: number; nombre: string;
+  citas: number;          // TC, total citations of the subfactors (RN-01)
+  ns: number;             // NS, number of subfactors measured
+  r: number;              // r = TC / NS, the value located by the cuts (RN-01, RN-02)
+}
+interface DispersionAnclas { minimo: number; maximo: number; mediana: number;
+  promedio: number; desviacion: number }
+interface MedicionAnclas {
+  estado: 'inactiva' | 'en_curso' | 'completada' | 'fallida';
+  progreso: { hechos: number; total: number } | null;   // null unless en_curso
+  factorActual: string | null;
+  error: string | null;
+  version: { id: number; numero: number } | null;
+  cortes: { rq1: number; rq2: number; rq3: number } | null;
+  dispersion: DispersionAnclas | null;                  // spread of the anchors' r
+  anclas: AnclaMedida[];
+}
+```
+
+| Method and path | Response |
+| --- | --- |
+| `GET /api/catalogo/anclas` | `MedicionAnclas`: the last measurement of this process while it exists, otherwise the anchors published with the current version (`estado: 'inactiva'`) |
+| `POST /api/catalogo/anclas/medir` | `202 MedicionAnclas` in state `en_curso`; poll `GET` until `completada` or `fallida` |
+
+Rules: the measurement is **incremental** (section 6) — only the active factors that still have no
+anchor in the current version are measured, so an existing anchor never changes its `citas`, `ns` or
+`r`. On success a new catalog version is published with all the anchors (the inherited ones plus the
+new ones) and `rq1`–`rq3` recomputed as inclusive quartiles over every `r` (RN-02). Existing
+projects keep their pinned version.
+
+Errors: `403` when the caller is not an administrator (RNF-08); `400 "No hay factores activos para
+medir"`; `400 "Todos los factores activos ya tienen ancla; no hay factores nuevos por medir"`;
+`409 "La medición de anclas requiere la IA configurada"` (RNF-06); `409 "Ya hay una medición de
+anclas en curso"` (RNF-12); `409 "No hay un catálogo cargado"`. A failed measurement ends in
+`estado: 'fallida'` with `error`, publishes nothing and leaves the factors editable (RNF-06).
+
+The 18 thesis anchors (Table 7, 2008–2019: TC 243, NS 61) are seeded by the data migration
+`20261105040000_catalogo_inicial_tesis` and reproduce the cuts 1.86 / 3.65 / 4.78 of version 1.
+
+## A12. AI suggested importance per project
+
+When a project is created, the server asks the AI once for every factor of the chosen
+dimensions, with web search, giving the context (organization sector and `tipoSoftware`), the
+thesis IS and the anchors (TC, NS, IL) of 2008-2019 and 2020-2025. The answer must be JSON
+`{ factores: [{ id, is: 1-4 integer, justificacion, confianza: 0-1 }] }` with exactly one entry
+per factor; otherwise it is discarded. Each IS is capped at `IA_IS_DESVIO_MAX` levels (default 1)
+around the thesis IS. If the AI is not configured, fails, times out or answers invalid data, the
+thesis IS is used (`origen: 'respaldo'` with the reason). Every call is stored in
+`sugerencia_is` (prompt, model, answer, result, origin, date); identical contexts reuse the last
+valid AI answer. The resulting IS is the project's `impSugerida`; the catalog is not changed.

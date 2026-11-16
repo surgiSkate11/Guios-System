@@ -13,6 +13,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { consolidacionConfirmada } from '../evaluacion/participantes';
 import { AccesoService } from './acceso.service';
+import { SugerenciaIsService } from './sugerencia-is.service';
 import type {
   ActualizarJuradoDto,
   ActualizarProyectoDto,
@@ -25,6 +26,15 @@ const INCLUDE = {
   organizacion: { select: { id: true, nombre: true } },
   coordinador: { select: { id: true, nombre: true, email: true } },
   catalogoVersion: { select: { numero: true } },
+  sugerenciaIs: {
+    select: {
+      id: true,
+      origen: true,
+      modelo: true,
+      motivoRespaldo: true,
+      creadoEn: true,
+    },
+  },
   softwares: { orderBy: { id: 'asc' } },
   dimensiones: {
     include: { dimension: true },
@@ -72,6 +82,15 @@ export interface ProyectoResumen {
   dimensiones: { id: number; nombre: string }[];
   miRol: 'coordinador' | 'jurado';
   miEstadoJurado: EstadoJurado | null;
+  tipoSoftware: string | null;
+  /** How the suggested importances of this project were obtained. */
+  sugerenciaIs: {
+    id: number;
+    origen: 'ia' | 'respaldo';
+    modelo: string | null;
+    motivoRespaldo: string | null;
+    creadoEn: string;
+  } | null;
 }
 
 const YA_ES_JURADO = 'El usuario ya es jurado del proyecto';
@@ -109,6 +128,10 @@ function toResumen(p: ProyectoCompleto, idUsuario: number): ProyectoResumen {
     })),
     miRol: p.idCoordinador === idUsuario ? 'coordinador' : 'jurado',
     miEstadoJurado: mio?.estado ?? null,
+    tipoSoftware: p.tipoSoftware,
+    sugerenciaIs: p.sugerenciaIs
+      ? { ...p.sugerenciaIs, creadoEn: p.sugerenciaIs.creadoEn.toISOString() }
+      : null,
   };
 }
 
@@ -118,7 +141,29 @@ export class ProyectosService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly acceso: AccesoService,
+    private readonly sugerencias: SugerenciaIsService,
   ) {}
+
+  /** Audit detail of the suggested importances of a project (any project member). */
+  async sugerenciaIs(idProyecto: number, usuario: UsuarioPublico) {
+    await this.acceso.obtener(idProyecto, usuario);
+    const p = await this.prisma.proyectoEvaluacion.findUniqueOrThrow({
+      where: { id: idProyecto },
+      include: { sugerenciaIs: true },
+    });
+    if (!p.sugerenciaIs) {
+      throw new NotFoundException('El proyecto no tiene una sugerencia de IS');
+    }
+    const s = p.sugerenciaIs;
+    return {
+      origen: s.origen,
+      modelo: s.modelo,
+      motivoRespaldo: s.motivoRespaldo,
+      creadoEn: s.creadoEn.toISOString(),
+      contexto: s.contexto,
+      factores: s.resultado,
+    };
+  }
 
   async resumen(
     idProyecto: number,
@@ -186,7 +231,24 @@ export class ProyectosService {
     }
     const factores = await this.prisma.factor.findMany({
       where: { idDimension: { in: dto.idDimensiones }, activo: true },
+      include: { dimension: true },
       orderBy: { id: 'asc' },
+    });
+    const organizacion = await this.prisma.organizacion.findUniqueOrThrow({
+      where: { id: usuario.idOrganizacion },
+    });
+    const tipoSoftware = dto.tipoSoftware?.trim() || null;
+    // AI suggested importance for this context, or the thesis IS as fallback.
+    const sugerencia = await this.sugerencias.sugerir({
+      idCatalogoVersion: version.id,
+      sector: organizacion.sector,
+      tipoSoftware,
+      factores: factores.map((f) => ({
+        id: f.id,
+        nombre: f.nombre,
+        dimension: f.dimension.nombre,
+        sugeridaDefault: f.sugeridaDefault,
+      })),
     });
 
     const creado = await this.prisma.proyectoEvaluacion.create({
@@ -198,6 +260,8 @@ export class ProyectosService {
         idOrganizacion: usuario.idOrganizacion,
         idCoordinador: usuario.id,
         idCatalogoVersion: version.id,
+        tipoSoftware,
+        idSugerenciaIs: sugerencia.id,
         dimensiones: {
           create: dto.idDimensiones.map((idDimension) => ({ idDimension })),
         },
@@ -205,7 +269,7 @@ export class ProyectosService {
         factores: {
           create: factores.map((f) => ({
             idFactor: f.id,
-            impSugerida: f.sugeridaDefault,
+            impSugerida: sugerencia.isPorFactor.get(f.id) ?? f.sugeridaDefault,
             alcanceEfectivo: f.alcanceDefault,
           })),
         },
