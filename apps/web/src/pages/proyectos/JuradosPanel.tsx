@@ -71,6 +71,7 @@ export function JuradosPanel({ proyecto, puedeEditar, onCambio }: JuradosPanelPr
       {proyecto.jurados.length === 0 ? (
         <p className="mb-4 text-sm text-slate-500">Este proyecto aún no tiene jurados</p>
       ) : (
+        <div className="overflow-x-auto">
         <table className="mb-4 w-full text-left text-sm">
           <thead className="bg-slate-50 text-xs font-semibold text-slate-600">
             <tr>
@@ -127,6 +128,7 @@ export function JuradosPanel({ proyecto, puedeEditar, onCambio }: JuradosPanelPr
             ))}
           </tbody>
         </table>
+        </div>
       )}
       {puedeEditar && (
         <form onSubmit={buscar} className="flex flex-wrap items-end gap-3 rounded-xl bg-slate-50 p-4">

@@ -132,6 +132,7 @@ function Dimension({
         </span>
       </button>
       {abierta && (
+        <div className="overflow-x-auto">
         <table aria-label={`Factores de ${dimension.nombre}`} className="mt-2 w-full text-sm">
           <thead className="bg-slate-50 text-left text-xs text-slate-500">
             <tr>
@@ -149,6 +150,7 @@ function Dimension({
             ))}
           </tbody>
         </table>
+        </div>
       )}
     </div>
   )
@@ -158,6 +160,7 @@ function Versiones() {
   const { datos, cargando, error } = useCarga(listarVersionesCatalogo)
   if (!datos) return <EstadoCarga cargando={cargando} error={error} />
   return (
+    <div className="overflow-x-auto">
     <table aria-label="Versiones del catálogo" className="w-full text-sm">
       <thead className="bg-slate-50 text-left text-xs text-slate-500">
         <tr>
@@ -176,6 +179,7 @@ function Versiones() {
         ))}
       </tbody>
     </table>
+    </div>
   )
 }
 

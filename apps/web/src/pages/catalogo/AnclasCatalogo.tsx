@@ -211,6 +211,7 @@ export function AnclasCatalogo({
           {medicion.anclas.length === 0 ? (
             <p className="text-sm text-slate-500">Todavía no hay anclas medidas en esta versión.</p>
           ) : (
+            <div className="overflow-x-auto">
             <table aria-label="Anclas de la versión vigente" className="w-full text-sm">
               <thead className="bg-slate-50 text-left text-xs text-slate-500">
                 <tr>
@@ -227,6 +228,7 @@ export function AnclasCatalogo({
                 ))}
               </tbody>
             </table>
+            </div>
           )}
           <p className="mt-3 text-sm text-slate-600">
             {faltantes === 0

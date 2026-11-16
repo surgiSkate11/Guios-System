@@ -135,6 +135,7 @@ function Calificaciones({ proyecto }: { proyecto: ProyectoResumen }) {
             Guardado inmediato
           </span>
         </div>
+        <div className="overflow-x-auto">
         <table aria-label={`Subfactores de ${factor.factor.nombre} · ${software.nombre}`} className="w-full text-sm">
           <thead className="bg-slate-50 text-left text-xs text-slate-500">
             <tr>
@@ -193,6 +194,7 @@ function Calificaciones({ proyecto }: { proyecto: ProyectoResumen }) {
             ))}
           </tbody>
         </table>
+        </div>
         <p id="ayuda-desconozco" className="mt-2 text-xs text-slate-500">
           {AYUDA_DESCONOZCO}
         </p>

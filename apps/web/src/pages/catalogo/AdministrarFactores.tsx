@@ -299,6 +299,7 @@ export function AdministrarFactores({ onCambio }: { onCambio: () => void }) {
       {!datos ? (
         <EstadoCarga cargando={cargando} error={error} />
       ) : (
+        <div className="overflow-x-auto">
         <table aria-label="Administrar factores" className="w-full text-sm">
           <thead className="bg-slate-50 text-left text-xs text-slate-500">
             <tr>
@@ -322,6 +323,7 @@ export function AdministrarFactores({ onCambio }: { onCambio: () => void }) {
             ))}
           </tbody>
         </table>
+        </div>
       )}
     </section>
   )

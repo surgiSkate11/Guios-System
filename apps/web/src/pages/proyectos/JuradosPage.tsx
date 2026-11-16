@@ -36,6 +36,7 @@ export function JuradosPage() {
             {filas.length === 0 ? (
               <p className="text-sm text-slate-500">Aún no hay jurados en tus proyectos</p>
             ) : (
+              <div className="overflow-x-auto">
               <table aria-label="Jurados de tus proyectos" className="w-full text-left text-sm">
                 <thead className="bg-slate-50 text-xs font-semibold text-slate-600">
                   <tr>
@@ -62,6 +63,7 @@ export function JuradosPage() {
                   ))}
                 </tbody>
               </table>
+              </div>
             )}
             <p className="mt-4 text-sm text-slate-500">
               Para agregar o quitar jurados abre el proyecto correspondiente.

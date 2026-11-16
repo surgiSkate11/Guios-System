@@ -22,6 +22,7 @@ export function HistorialPage() {
         <p className="rounded-2xl bg-white p-6 text-sm text-slate-500">Todavía no hay proyectos cerrados.</p>
       ) : (
         <section className="rounded-2xl bg-white p-5">
+          <div className="overflow-x-auto">
           <table aria-label="Proyectos cerrados" className="w-full text-sm">
             <thead className="bg-slate-50 text-left text-xs text-slate-500">
               <tr>
@@ -60,6 +61,7 @@ export function HistorialPage() {
               ))}
             </tbody>
           </table>
+          </div>
         </section>
       )}
     </div>
