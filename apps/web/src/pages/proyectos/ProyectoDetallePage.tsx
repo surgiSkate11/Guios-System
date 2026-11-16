@@ -38,7 +38,11 @@ function SugerenciaIsSeccion({ proyecto }: { proyecto: ProyectoResumen }) {
       : `Se usaron los valores de la tesis (${resumen.motivoRespaldo ?? 'sin motivo registrado'})`
   return (
     <Seccion titulo="Importancia sugerida">
-      <p className="mb-4 text-sm text-slate-600">{descripcion}</p>
+      <p className="mb-4 text-sm text-slate-600">
+        {descripcion}
+        {datos?.contexto?.busquedaWeb === false &&
+          ' · sin búsqueda web: el plan de IA no la incluye; se usaron la tesis y las anclas'}
+      </p>
       <EstadoCarga cargando={cargando} error={error} />
       {datos && (
         <div className="overflow-x-auto">

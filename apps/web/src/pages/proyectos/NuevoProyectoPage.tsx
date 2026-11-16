@@ -295,6 +295,12 @@ export function NuevoProyectoPage() {
               </button>
             </div>
           </div>
+          {ocupado && (
+            <p aria-live="polite" className="mt-4 text-sm text-slate-600">
+              Creando el proyecto: la IA está calculando la importancia sugerida de cada factor.
+              Puede tardar hasta dos minutos.
+            </p>
+          )}
         </Tarjeta>
       )}
 

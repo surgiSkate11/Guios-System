@@ -7,8 +7,9 @@ import { IA_CLIENTE, type IaCliente } from '../ia/ia-cliente';
 import { PrismaService } from '../prisma/prisma.service';
 
 /** Bump when the prompt changes so cached answers of the old prompt are not reused. */
-const VERSION_PROMPT = 'is-contexto-v1';
-const ESPERA_MS = 90_000;
+const VERSION_PROMPT = 'is-contexto-v2';
+/** Upper bound for the whole AI call, fallback models included. */
+const ESPERA_MS = 120_000;
 const PERIODO_REVISION = 2020;
 
 const INSTRUCCIONES =
@@ -21,7 +22,7 @@ const INSTRUCCIONES =
   'organización y de software y propone su importancia sugerida para este contexto. Mantén el ' +
   'valor de la tesis salvo que la evidencia justifique cambiarlo. Responde SOLO un objeto JSON, ' +
   'sin markdown ni texto adicional: {"factores":[{"id":<id del factor>,"is":<entero de 1 a 4>,' +
-  '"justificacion":"<una o dos frases en español>","confianza":<número entre 0 y 1>}]}, con ' +
+  '"justificacion":"<una frase en español de máximo 20 palabras>","confianza":<número entre 0 y 1>}]}, con ' +
   'exactamente un elemento por cada factor recibido.';
 
 export interface FactorContexto {
@@ -166,6 +167,8 @@ export class SugerenciaIsService {
       tipoOrganizacion: ctx.sector,
       tipoSoftware,
       factores: ids,
+      /** Whether the answer used web search; recorded for the audit. */
+      busquedaWeb: true,
     };
     const base = { clave, contexto, idCatalogoVersion: ctx.idCatalogoVersion };
     const prompt = `${INSTRUCCIONES}\n\n${entrada}`;
@@ -180,10 +183,10 @@ export class SugerenciaIsService {
         'IA no configurada',
       );
     }
-    let respuesta: string;
-    try {
-      respuesta = await Promise.race([
-        this.ia.completar(INSTRUCCIONES, entrada, { busquedaWeb: true }),
+    const ia = this.ia;
+    const consultar = (busquedaWeb: boolean) =>
+      Promise.race([
+        ia.completar(INSTRUCCIONES, entrada, { busquedaWeb }),
         new Promise<never>((_, rechazar) =>
           setTimeout(
             () => rechazar(new Error('tiempo de espera agotado')),
@@ -191,6 +194,20 @@ export class SugerenciaIsService {
           ).unref(),
         ),
       ]);
+    let respuesta: string;
+    try {
+      try {
+        respuesta = await consultar(true);
+      } catch (error) {
+        // Free plans may reject web search (429): ask again with the evidence we send.
+        if (!(error instanceof Error) || !error.message.includes('429'))
+          throw error;
+        this.logger.warn(
+          'Web search rejected by the AI plan; retrying without it',
+        );
+        contexto.busquedaWeb = false;
+        respuesta = await consultar(false);
+      }
     } catch (error) {
       const motivo = `Error de la IA: ${error instanceof Error ? error.message : String(error)}`;
       this.logger.warn(motivo);

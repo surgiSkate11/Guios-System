@@ -23,6 +23,8 @@ class FakeIa implements IaCliente {
   isPorNombre: Record<string, unknown> = {};
   crudo: string | null = null;
   fallo: Error | null = null;
+  /** Fails only the calls that ask for web search (e.g. free tier without grounding). */
+  falloConWeb: Error | null = null;
   omitir: string | null = null;
   confianza: unknown = 0.8;
 
@@ -33,6 +35,8 @@ class FakeIa implements IaCliente {
   ): Promise<string> {
     this.llamadas.push({ instrucciones, entrada, opciones });
     if (this.fallo) return Promise.reject(this.fallo);
+    if (this.falloConWeb && opciones?.busquedaWeb)
+      return Promise.reject(this.falloConWeb);
     if (this.crudo !== null) return Promise.resolve(this.crudo);
     const { factores } = JSON.parse(entrada) as { factores: FactorEntrada[] };
     return Promise.resolve(
@@ -68,6 +72,7 @@ describe('AI suggested importance per evaluation context (e2e, test database)', 
       isPorNombre: {},
       crudo: null,
       fallo: null,
+      falloConWeb: null,
       omitir: null,
       confianza: 0.8,
     });
@@ -230,7 +235,29 @@ describe('AI suggested importance per evaluation context (e2e, test database)', 
     ia.fallo = null;
     const otro = await crear('ERP');
     expect(otro.sugerenciaIs!.origen).toBe('ia');
-    expect(ia.llamadas).toHaveLength(2);
+    // A 429 is retried once without web search before falling back, then the new project calls again.
+    expect(ia.llamadas).toHaveLength(3);
+  });
+
+  it('retries without web search when the plan rejects it, and records that', async () => {
+    ia.falloConWeb = new Error('AI service answered 429');
+    ia.isPorNombre = { Usabilidad: 4 };
+    const p = await crear('ERP');
+    expect(ia.llamadas.map((l) => l.opciones)).toEqual([
+      { busquedaWeb: true },
+      { busquedaWeb: false },
+    ]);
+    expect(p.sugerenciaIs).toMatchObject({ origen: 'ia' });
+    expect(await isDelProyecto(p.id)).toEqual({
+      Usabilidad: 4,
+      Documentación: 2,
+    });
+    const res = await t
+      .http()
+      .get(`/api/proyectos/${p.id}/sugerencia-is`)
+      .set(coord.auth)
+      .expect(200);
+    expect(res.body.contexto.busquedaWeb).toBe(false);
   });
 
   it('accepts a project without software type and answers 404 to outsiders', async () => {

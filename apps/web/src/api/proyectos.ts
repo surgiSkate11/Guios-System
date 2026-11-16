@@ -197,6 +197,8 @@ export interface SugerenciaIs {
   modelo: string | null
   motivoRespaldo: string | null
   creadoEn: string
+  /** Context sent to the AI; busquedaWeb is false when the plan rejected web search. */
+  contexto?: { busquedaWeb?: boolean }
   factores: FactorSugerido[]
 }
 
