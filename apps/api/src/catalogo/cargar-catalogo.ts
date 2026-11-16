@@ -5,6 +5,8 @@ export interface CatalogoJson {
   motivo: string;
   /** Current IL cut points (RN-02). */
   cortes: { rq1: number; rq2: number; rq3: number };
+  /** Period of the thesis reference measurements; required when a factor has an anchor. */
+  periodoAnclas?: { desde: number; hasta: number };
   dimensiones: {
     nombre: string;
     factores: {
@@ -12,6 +14,11 @@ export interface CatalogoJson {
       /** IS from 1 to 4. */
       sugeridaDefault: number;
       alcanceDefault: 'interno' | 'externo';
+      /**
+       * Reference measurement of the factor published with version 1 (Table 7 of the
+       * thesis). r is never written in the file: it is derived as TC / NS (RN-01).
+       */
+      ancla?: { ns: number; citas: number };
       subfactores: string[];
     }[];
   }[];
@@ -23,6 +30,7 @@ export interface ResumenCarga {
   dimensiones: number;
   factores: number;
   subfactores: number;
+  anclas: number;
 }
 
 const MAX_TEXTO_SUBFACTOR = 300;
@@ -61,6 +69,14 @@ function validar(json: CatalogoJson): void {
       if (f.alcanceDefault !== 'interno' && f.alcanceDefault !== 'externo') {
         throw new Error(`${ctx}: alcanceDefault must be interno or externo`);
       }
+      if (f.ancla) {
+        if (!Number.isInteger(f.ancla.ns) || f.ancla.ns <= 0) {
+          throw new Error(`${ctx}: ancla.ns must be a positive integer`);
+        }
+        if (!Number.isInteger(f.ancla.citas) || f.ancla.citas < 0) {
+          throw new Error(`${ctx}: ancla.citas must be a non-negative integer`);
+        }
+      }
       if (!Array.isArray(f.subfactores) || f.subfactores.length === 0) {
         throw new Error(`${ctx}: at least one subfactor is required`);
       }
@@ -77,12 +93,28 @@ function validar(json: CatalogoJson): void {
       }
     }
   }
+  const conAncla = json.dimensiones.some((d) =>
+    d.factores.some((f) => Boolean(f.ancla)),
+  );
+  if (conAncla) {
+    const { desde, hasta } = json.periodoAnclas ?? {};
+    if (
+      !Number.isInteger(desde) ||
+      !Number.isInteger(hasta) ||
+      (desde as number) > (hasta as number)
+    ) {
+      throw new Error(
+        'periodoAnclas with an integer desde <= hasta is required when a factor has an anchor',
+      );
+    }
+  }
 }
 
 /**
- * Loads the validated thesis catalog as version 1 (HU-21). Idempotent: when any catalog
- * version exists, nothing is written. Everything is validated before the first write and
- * inserted in one transaction, so a bad file leaves the database untouched.
+ * Loads the validated thesis catalog as version 1 (HU-21), including the anchors of Table 7.
+ * Idempotent: when any catalog version exists, nothing is written. Everything is validated
+ * before the first write and inserted in one transaction, so a bad file leaves the database
+ * untouched. r is always derived as TC / NS (RN-01); it is never read from the file.
  */
 export async function cargarCatalogo(
   prisma: PrismaClient,
@@ -99,13 +131,16 @@ export async function cargarCatalogo(
       dimensiones: 0,
       factores: 0,
       subfactores: 0,
+      anclas: 0,
     };
   }
 
   let factores = 0;
   let subfactores = 0;
+  let anclas = 0;
+  const periodo = json.periodoAnclas;
   await prisma.$transaction(async (tx) => {
-    await tx.catalogoVersion.create({
+    const version = await tx.catalogoVersion.create({
       data: { numero: 1, motivo: json.motivo.trim(), ...json.cortes },
     });
     for (const d of json.dimensiones) {
@@ -113,7 +148,7 @@ export async function cargarCatalogo(
         data: { nombre: d.nombre.trim() },
       });
       for (const f of d.factores) {
-        await tx.factor.create({
+        const factor = await tx.factor.create({
           data: {
             idDimension: dimension.id,
             nombre: f.nombre.trim(),
@@ -130,6 +165,22 @@ export async function cargarCatalogo(
         });
         factores += 1;
         subfactores += f.subfactores.length;
+        if (f.ancla && periodo) {
+          // Reference measurement already published in version 1 (section 6).
+          await tx.medicionAncla.create({
+            data: {
+              idFactor: factor.id,
+              idCatalogoVersion: version.id,
+              terminosBusqueda: {},
+              periodoDesde: periodo.desde,
+              periodoHasta: periodo.hasta,
+              citas: f.ancla.citas,
+              ns: f.ancla.ns,
+              r: f.ancla.citas / f.ancla.ns,
+            },
+          });
+          anclas += 1;
+        }
       }
     }
   });
@@ -139,5 +190,6 @@ export async function cargarCatalogo(
     dimensiones: json.dimensiones.length,
     factores,
     subfactores,
+    anclas,
   };
 }

@@ -154,3 +154,45 @@ export function actualizarSubfactor(
 ): Promise<SubfactorAdmin> {
   return apiFetch<SubfactorAdmin>(`/catalogo/subfactores/${id}`, { method: 'PATCH', body, ...token() })
 }
+
+export type EstadoMedicionAnclas = 'inactiva' | 'en_curso' | 'completada' | 'fallida'
+
+/** One reference factor measured with the current method (A11). */
+export interface AnclaMedida {
+  idFactor: number
+  nombre: string
+  citas: number
+  ns: number
+  r: number
+}
+
+/** Spread of the anchors' r, the dispersion the spec plots as a box plot (A11). */
+export interface DispersionAnclas {
+  minimo: number
+  maximo: number
+  mediana: number
+  promedio: number
+  desviacion: number
+}
+
+/** State of the anchor measurement and the anchors of the current version (A11). */
+export interface MedicionAnclas {
+  estado: EstadoMedicionAnclas
+  progreso: { hechos: number; total: number } | null
+  factorActual: string | null
+  error: string | null
+  version: { id: number; numero: number } | null
+  cortes: { rq1: number; rq2: number; rq3: number } | null
+  dispersion: DispersionAnclas | null
+  anclas: AnclaMedida[]
+}
+
+// Anchor measurement endpoints of docs/api-contract.md (A11, administrator only).
+
+export function obtenerAnclas(): Promise<MedicionAnclas> {
+  return apiFetch<MedicionAnclas>('/catalogo/anclas', token())
+}
+
+export function medirAnclas(): Promise<MedicionAnclas> {
+  return apiFetch<MedicionAnclas>('/catalogo/anclas/medir', { method: 'POST', ...token() })
+}

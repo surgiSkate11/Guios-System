@@ -48,10 +48,20 @@ Antes de empezar, leé `README.md`, `AGENTS.md` y `docs/api-contract.md`.
 
 ## Tarea 3 · Medición de anclas (sección 6, `medicion_ancla`)
 
-Hoy la estimación con IA usa los cortes de la versión vigente del catálogo. Falta la acción de
-administrador "Medir anclas": medir los 18 factores con el mismo método (OpenAlex + IA), guardar
-cada medición en `medicion_ancla`, calcular los cortes con `cuartilesInclusivos` y publicar una
-versión nueva del catálogo con esos cortes. Reutilizá `EstimacionIaService` para medir cada factor.
+Implementada. La migración `20261105040000_catalogo_inicial_tesis` deja la versión 1 completa
+(motivo `sistema`, cortes 1.86/3.65/4.78, 3 dimensiones, 18 factores, 61 subfactores y las 18
+anclas de la Tabla 7 con TC 243 y NS 61); `npm run db:catalogo -w @guios/api` carga los mismos
+valores desde `apps/api/prisma/catalogo.json` y no inserta nada si ya existen.
+
+La acción de administrador "Medir anclas" está en `/admin/catalogo`
+([`AnclasCatalogo.tsx`](apps/web/src/pages/catalogo/AnclasCatalogo.tsx)): lista las anclas de la
+versión vigente con su TC, NS, r e IL, los cortes y la dispersión, y mide con OpenAlex + IA solo
+los factores activos que todavía no tienen ancla en esa versión. Las anclas existentes conservan
+sus citas, su NS y su r; al terminar se publica una versión nueva con los cortes recalculados
+sobre el conjunto completo. El contrato está en `docs/api-contract.md` A11.
+
+Pendiente del equipo: con una `IA_API_KEY` real, medir un factor nuevo (por ejemplo "Integración
+con modelos de IA") y revisar los cortes resultantes con el docente.
 
 ## Tarea 4 · Pulido visual y accesibilidad (RNF-01, RNF-02, RNF-10)
 
