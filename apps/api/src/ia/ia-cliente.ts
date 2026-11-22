@@ -26,7 +26,8 @@ const MODELOS_POR_DEFECTO = {
 } as const;
 type Proveedor = keyof typeof MODELOS_POR_DEFECTO;
 /** Default IA_MODELOS_RESPALDO for Gemini. */
-const RESPALDO_GEMINI = 'gemini-3.5-flash';
+const RESPALDO_GEMINI =
+  'gemini-3.5-flash,gemini-3.5-flash-lite,gemini-3.1-flash-lite';
 const TIMEOUT_MS = 60_000;
 /** Shorter wait while another model remains: an overloaded model may hang instead of answering 503. */
 const TIMEOUT_CON_RESPALDO_MS = 20_000;

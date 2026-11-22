@@ -27,7 +27,11 @@ describe('crearIaCliente', () => {
     const porDefecto = crearIaCliente(
       config({ IA_API_KEY: 'k' }),
     ) as GeminiCliente;
-    expect(porDefecto.respaldo).toEqual(['gemini-3.5-flash']);
+    expect(porDefecto.respaldo).toEqual([
+      'gemini-3.5-flash',
+      'gemini-3.5-flash-lite',
+      'gemini-3.1-flash-lite',
+    ]);
     const propio = crearIaCliente(
       config({ IA_API_KEY: 'k', IA_MODELOS_RESPALDO: ' a , b ,, ' }),
     ) as GeminiCliente;

@@ -3,11 +3,13 @@ import { ConfigService } from '@nestjs/config';
 import { importanciaLiteratura } from '@guios/calculo';
 import { createHash } from 'node:crypto';
 import type { Prisma, Sector } from '../generated/prisma/client';
+import { BIBLIOGRAFIA, type Bibliografia } from '../catalogo/bibliografia';
+import { normalizarDoi } from '../catalogo/estimacion';
 import { IA_CLIENTE, type IaCliente } from '../ia/ia-cliente';
 import { PrismaService } from '../prisma/prisma.service';
 
 /** Bump when the prompt changes so cached answers of the old prompt are not reused. */
-const VERSION_PROMPT = 'is-contexto-v2';
+const VERSION_PROMPT = 'is-contexto-v3';
 /** Upper bound for the whole AI call, fallback models included. */
 const ESPERA_MS = 120_000;
 const PERIODO_REVISION = 2020;
@@ -17,7 +19,9 @@ const INSTRUCCIONES =
   'organización y tipo de software) y, por cada factor de la guía GUIOS, su importancia sugerida ' +
   'de la tesis (isTesis, escala 1 Irrelevante, 2 Opcional, 3 Importante, 4 Fundamental, basada en ' +
   'literatura 2008-2019) y la evidencia disponible: tesis2008_2019 y revision2020_2025, con TC = ' +
-  'citas, NS = subfactores e IL = importancia de la literatura de 1 a 4. Busca en internet ' +
+  'citas, NS = subfactores e IL = importancia de la literatura de 1 a 4, y articulosRecientes: ' +
+  'artículos 2020-2025 encontrados en internet (OpenAlex) sobre ese factor. Usa esos artículos y, ' +
+  'si puedes, busca en internet ' +
   'evidencia reciente (2020-2025) sobre la relevancia de cada factor para ese tipo de ' +
   'organización y de software y propone su importancia sugerida para este contexto. Mantén el ' +
   'valor de la tesis salvo que la evidencia justifique cambiarlo. Responde SOLO un objeto JSON, ' +
@@ -131,6 +135,7 @@ export class SugerenciaIsService {
     private readonly prisma: PrismaService,
     @Inject(IA_CLIENTE) private readonly ia: IaCliente | null,
     config: ConfigService,
+    @Inject(BIBLIOGRAFIA) private readonly bibliografia: Bibliografia,
   ) {
     const valor = Number(config.get<string>('IA_IS_DESVIO_MAX') ?? 1);
     this.desvioMax = Number.isInteger(valor) && valor >= 0 ? valor : 1;
@@ -159,17 +164,29 @@ export class SugerenciaIsService {
     });
     if (enCache) return this.aSugerencia(enCache.id, enCache.resultado);
 
-    const entrada = JSON.stringify({
-      contexto: { tipoOrganizacion: ctx.sector, tipoSoftware },
-      factores: await this.evidencia(ctx),
-    });
+    const factoresEvidencia = await this.evidencia(ctx);
     const contexto = {
       tipoOrganizacion: ctx.sector,
       tipoSoftware,
       factores: ids,
-      /** Whether the answer used web search; recorded for the audit. */
+      /** Whether the answer used Google web search; recorded for the audit. */
       busquedaWeb: true,
+      /** Recent (2020-2025) articles found in OpenAlex and given to the AI. */
+      articulosWeb: 0,
     };
+    // Internet evidence from OpenAlex (free), so the AI has recent sources even when the
+    // plan does not include Google search. Only when an AI will read it.
+    const articulos = this.ia
+      ? await this.articulosRecientes(ctx, tipoSoftware)
+      : [];
+    contexto.articulosWeb = articulos.reduce((n, a) => n + a.length, 0);
+    const entrada = JSON.stringify({
+      contexto: { tipoOrganizacion: ctx.sector, tipoSoftware },
+      factores: factoresEvidencia.map((f, i) => ({
+        ...f,
+        articulosRecientes: articulos[i] ?? [],
+      })),
+    });
     const base = { clave, contexto, idCatalogoVersion: ctx.idCatalogoVersion };
     const prompt = `${INSTRUCCIONES}\n\n${entrada}`;
 
@@ -294,6 +311,37 @@ export class SugerenciaIsService {
         ),
       };
     });
+  }
+
+  /** Up to three 2020-2025 articles per factor from OpenAlex; a failed search yields none. */
+  private async articulosRecientes(
+    ctx: ContextoSugerencia,
+    tipoSoftware: string,
+  ) {
+    const contexto =
+      tipoSoftware === 'no especificado' ? '' : ` ${tipoSoftware}`;
+    return Promise.all(
+      ctx.factores.map((f) =>
+        this.bibliografia
+          .buscar(`${f.nombre}${contexto} software adoption`, 5)
+          .then((encontrados) =>
+            encontrados
+              .filter((a) => a.anio >= PERIODO_REVISION && a.anio <= 2025)
+              .slice(0, 3)
+              .map((a) => ({
+                titulo: a.titulo,
+                anio: a.anio,
+                doi: normalizarDoi(a.doi),
+              })),
+          )
+          .catch((error: unknown) => {
+            this.logger.warn(
+              `OpenAlex search failed for ${f.nombre}: ${error instanceof Error ? error.message : String(error)}`,
+            );
+            return [];
+          }),
+      ),
+    );
   }
 
   private async guardarRespaldo(

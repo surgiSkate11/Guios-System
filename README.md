@@ -86,7 +86,7 @@ the web.
 | `IA_PROVEEDOR` | no | `gemini` | AI provider: `gemini` (Google AI Studio, has a free tier) or `anthropic` |
 | `IA_API_KEY` | no | — | API key of the provider, used by the AI analysis and the AI IS estimation. Without it the analysis uses the fallback text and the AI estimation answers 409. On the Gemini free tier Google may use requests to improve its models; only public abstracts and pseudonymized results are sent |
 | `IA_MODELO` | no | `gemini-3.8-flash` (gemini) / `claude-haiku-5-5` (anthropic) | AI model id |
-| `IA_MODELOS_RESPALDO` | no | `gemini-3.5-flash` | Gemini only: comma-separated models tried in order when the main one is overloaded (503), rate-limited (429), retired (404) or does not answer within 20 s |
+| `IA_MODELOS_RESPALDO` | no | `gemini-3.5-flash,gemini-3.5-flash-lite,gemini-3.1-flash-lite` | Gemini only: comma-separated models tried in order when the main one is overloaded (503), rate-limited (429), retired (404) or does not answer within 20 s |
 | `IA_IS_DESVIO_MAX` | no | `1` | Maximum difference, in levels, between the AI suggested importance of a project and the thesis IS |
 | `OPENALEX_MAILTO` | no | — | Contact email sent to OpenAlex (polite pool) |
 | `AUTH_RATE_LIMIT` | no | `10` | Max login, sign-up and recovery requests per minute per client |

@@ -40,8 +40,14 @@ function SugerenciaIsSeccion({ proyecto }: { proyecto: ProyectoResumen }) {
     <Seccion titulo="Importancia sugerida">
       <p className="mb-4 text-sm text-slate-600">
         {descripcion}
-        {datos?.contexto?.busquedaWeb === false &&
-          ' · sin búsqueda web: el plan de IA no la incluye; se usaron la tesis y las anclas'}
+        {resumen.origen === 'ia' && datos?.contexto && (
+          <>
+            {' · con la tesis, las anclas y '}
+            {datos.contexto.articulosWeb ?? 0} artículos 2020-2025 de internet (OpenAlex)
+            {datos.contexto.busquedaWeb === false &&
+              '; la búsqueda de Google no está incluida en el plan gratuito de la IA'}
+          </>
+        )}
       </p>
       <EstadoCarga cargando={cargando} error={error} />
       {datos && (

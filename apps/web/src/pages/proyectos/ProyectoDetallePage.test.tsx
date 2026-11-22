@@ -238,18 +238,17 @@ describe('ProyectoDetallePage suggested importance (A12)', () => {
     ])
   })
 
-  it('says when the AI could not search the web', async () => {
+  it('tells how many internet articles from OpenAlex the AI used', async () => {
     abrir(
       proyecto({
         tipoSoftware: 'ERP',
         sugerenciaIs: { id: 1, origen: 'ia', modelo: 'gemini-3.5-flash', motivoRespaldo: null, creadoEn: SUGERENCIA.creadoEn },
       }),
       COORDINADOR,
-      conSugerencia({ ...SUGERENCIA, contexto: { busquedaWeb: false } }),
+      conSugerencia({ ...SUGERENCIA, contexto: { busquedaWeb: false, articulosWeb: 42 } }),
     )
-    expect(
-      await screen.findByText(/sin búsqueda web: el plan de IA no la incluye/),
-    ).toBeInTheDocument()
+    const texto = await screen.findByText(/42 artículos 2020-2025 de internet \(OpenAlex\)/)
+    expect(texto).toHaveTextContent('la búsqueda de Google no está incluida en el plan gratuito')
   })
 
   it('explains the fallback to the thesis IS', async () => {

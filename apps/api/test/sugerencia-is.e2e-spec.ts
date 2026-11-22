@@ -3,7 +3,39 @@ import {
   type IaCliente,
   type OpcionesIa,
 } from '../src/ia/ia-cliente';
+import {
+  BIBLIOGRAFIA,
+  type Articulo,
+  type Bibliografia,
+} from '../src/catalogo/bibliografia';
 import { crearOrganizacion, seedCatalogo } from './fixtures';
+
+/** Fake OpenAlex: two recent articles per query, or a failure. */
+class FakeBibliografia implements Bibliografia {
+  consultas: string[] = [];
+  fallar = false;
+  buscar(consulta: string): Promise<Articulo[]> {
+    this.consultas.push(consulta);
+    if (this.fallar) return Promise.reject(new Error('OpenAlex down'));
+    return Promise.resolve([
+      {
+        doi: 'https://doi.org/10.1/a',
+        titulo: `Study on ${consulta}`,
+        anio: 2024,
+        tipo: 'article',
+        resumen: 'r',
+      },
+      {
+        doi: 'https://doi.org/10.1/b',
+        titulo: 'Another study',
+        anio: 2019,
+        tipo: 'article',
+        resumen: 'r',
+      },
+    ]);
+  }
+}
+const biblio = new FakeBibliografia();
 import { createTestContext, TestContext } from './helpers';
 
 interface FactorEntrada {
@@ -62,7 +94,11 @@ describe('AI suggested importance per evaluation context (e2e, test database)', 
 
   beforeAll(async () => {
     t = await createTestContext((b) =>
-      b.overrideProvider(IA_CLIENTE).useValue(ia),
+      b
+        .overrideProvider(IA_CLIENTE)
+        .useValue(ia)
+        .overrideProvider(BIBLIOGRAFIA)
+        .useValue(biblio),
     );
   });
   beforeEach(async () => {
@@ -258,6 +294,49 @@ describe('AI suggested importance per evaluation context (e2e, test database)', 
       .set(coord.auth)
       .expect(200);
     expect(res.body.contexto.busquedaWeb).toBe(false);
+  });
+
+  it('gives the AI recent internet evidence from OpenAlex for every factor', async () => {
+    biblio.consultas = [];
+    biblio.fallar = false;
+    const p = await crear('ERP');
+    expect(biblio.consultas).toEqual([
+      'Usabilidad ERP software adoption',
+      'Documentación ERP software adoption',
+    ]);
+    const entrada = JSON.parse(ia.llamadas[0].entrada) as {
+      factores: {
+        nombre: string;
+        articulosRecientes: { titulo: string; anio: number; doi: string }[];
+      }[];
+    };
+    // Only 2020-2025 articles count as recent evidence.
+    expect(entrada.factores[0].articulosRecientes).toEqual([
+      {
+        titulo: 'Study on Usabilidad ERP software adoption',
+        anio: 2024,
+        doi: '10.1/a',
+      },
+    ]);
+    const res = await t
+      .http()
+      .get(`/api/proyectos/${p.id}/sugerencia-is`)
+      .set(coord.auth)
+      .expect(200);
+    expect(res.body.contexto.articulosWeb).toBe(2);
+  });
+
+  it('still asks the AI when OpenAlex is down', async () => {
+    biblio.fallar = true;
+    const p = await crear('ERP');
+    biblio.fallar = false;
+    expect(p.sugerenciaIs!.origen).toBe('ia');
+    const res = await t
+      .http()
+      .get(`/api/proyectos/${p.id}/sugerencia-is`)
+      .set(coord.auth)
+      .expect(200);
+    expect(res.body.contexto.articulosWeb).toBe(0);
   });
 
   it('accepts a project without software type and answers 404 to outsiders', async () => {
