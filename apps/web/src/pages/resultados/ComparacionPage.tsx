@@ -225,7 +225,7 @@ export function ComparacionSelectorPage() {
   return (
     <SelectorProyecto
       title="Comparación de softwares"
-      subtitle="Elegí el proyecto a comparar"
+      subtitle="Elige el proyecto a comparar"
       icon={GitCompareArrows}
       filtro={(proyecto) => proyecto.miRol === 'coordinador'}
       pantalla="comparacion"

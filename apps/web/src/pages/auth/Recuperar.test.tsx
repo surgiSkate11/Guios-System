@@ -71,7 +71,7 @@ describe('Restablecer contraseña', () => {
       method: 'POST',
       body: { token: 'bueno', password: 'nueva12345' },
     })
-    expect(await screen.findByRole('status')).toHaveTextContent('Contraseña actualizada. Iniciá sesión.')
+    expect(await screen.findByRole('status')).toHaveTextContent('Contraseña actualizada. Inicia sesión.')
   })
 
   it('shows the server message when the link is invalid or expired', async () => {

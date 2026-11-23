@@ -119,7 +119,7 @@ export function AnalisisSelectorPage() {
   return (
     <SelectorProyecto
       title="Análisis con IA"
-      subtitle="Elegí el proyecto a analizar"
+      subtitle="Elige el proyecto a analizar"
       icon={Bot}
       filtro={(proyecto) => proyecto.miRol === 'coordinador'}
       pantalla="analisis"

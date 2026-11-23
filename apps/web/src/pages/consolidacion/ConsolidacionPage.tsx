@@ -272,7 +272,7 @@ export function ConsolidacionSelectorPage() {
   return (
     <SelectorProyecto
       title="Consolidación y alcance"
-      subtitle="Elegí el proyecto a consolidar"
+      subtitle="Elige el proyecto a consolidar"
       icon={ClipboardCheck}
       filtro={(proyecto) => proyecto.miRol === 'coordinador'}
       pantalla="consolidacion"

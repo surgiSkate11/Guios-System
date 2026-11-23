@@ -40,7 +40,7 @@ describe('RegistroPage', () => {
     expect(await screen.findByLabelText('Nombre')).toHaveAttribute('type', 'text')
     expect(screen.getByLabelText('Correo')).toHaveAttribute('type', 'email')
     expect(screen.getByLabelText('Contraseña')).toHaveAttribute('type', 'password')
-    expect(screen.getByRole('link', { name: 'Iniciá sesión' })).toHaveAttribute('href', '/login')
+    expect(screen.getByRole('link', { name: 'Inicia sesión' })).toHaveAttribute('href', '/login')
   })
 
   it('creates a guest account, stores the token and shows only the home panel (HU-18)', async () => {

@@ -6,11 +6,11 @@ export function CalificarPage() {
   return (
     <SelectorProyecto
       title="Calificar factores"
-      subtitle="Elegí el proyecto que vas a evaluar como jurado"
+      subtitle="Elige el proyecto que vas a evaluar como jurado"
       icon={ClipboardList}
       filtro={(proyecto) => proyecto.miEstadoJurado === 'activo'}
       pantalla="importancia"
-      vacio="No tenés proyectos activos como jurado."
+      vacio="No tienes proyectos activos como jurado."
     />
   )
 }

@@ -39,7 +39,7 @@ describe('Calificar factores (project picker)', () => {
     const proyectos = proyectosApi([], INVITADO)
     renderRoute('/evaluaciones/calificar', { usuario: INVITADO, api: proyectos.handler })
     expect(
-      await screen.findByText('No tenés proyectos activos como jurado.'),
+      await screen.findByText('No tienes proyectos activos como jurado.'),
     ).toBeInTheDocument()
   })
 })
@@ -168,7 +168,7 @@ describe('Paso 3 y 4: calificación de subfactores (HU-05)', () => {
     const casilla = within(tabla).getByRole('checkbox', { name: 'Desconozco: Compatible con varios SO' })
     expect(casilla).toBeChecked()
     expect(casilla).toBeDisabled()
-    expect(casilla).toHaveAccessibleDescription('Para salir de Desconozco, elegí un valor de 1 a 4.')
+    expect(casilla).toHaveAccessibleDescription('Para salir de Desconozco, elige un valor de 1 a 4.')
   })
 
   it('switches factor and software', async () => {

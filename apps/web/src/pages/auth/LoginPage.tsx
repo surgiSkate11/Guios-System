@@ -60,9 +60,9 @@ export function LoginPage() {
           Iniciar sesión
         </button>
         <p className="text-center text-xs text-slate-500">
-          ¿No tenés cuenta?{' '}
+          ¿No tienes cuenta?{' '}
           <Link to="/registro" className="text-blue-600 hover:underline">
-            Registrate
+            Regístrate
           </Link>
         </p>
       </form>

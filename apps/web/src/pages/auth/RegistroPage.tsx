@@ -67,9 +67,9 @@ export function RegistroPage() {
           Crear cuenta
         </button>
         <p className="text-center text-xs text-slate-500">
-          ¿Ya tenés cuenta?{' '}
+          ¿Ya tienes cuenta?{' '}
           <Link to="/login" className="text-blue-600 hover:underline">
-            Iniciá sesión
+            Inicia sesión
           </Link>
         </p>
       </form>

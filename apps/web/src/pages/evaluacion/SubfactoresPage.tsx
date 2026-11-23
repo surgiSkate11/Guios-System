@@ -16,7 +16,7 @@ import { formatearPm, VALORES } from './escalas'
 import { errorDePaso } from './errores'
 import { PasosEvaluacion } from './PasosEvaluacion'
 
-const AYUDA_DESCONOZCO = 'Para salir de Desconozco, elegí un valor de 1 a 4.'
+const AYUDA_DESCONOZCO = 'Para salir de Desconozco, elige un valor de 1 a 4.'
 
 /** PM shown while the server answers, computed with the shared rule RN-07 (RNF-03). */
 function pmLocal(subfactores: SubfactorCalificado[]): number | null {
@@ -50,7 +50,7 @@ function Calificaciones({ proyecto }: { proyecto: ProyectoResumen }) {
   }
   if (!datos) return <EstadoCarga cargando={cargando} error={errorDePaso(error, status)} />
   if (datos.factores.length === 0) {
-    return <p className="text-sm text-slate-500">No tenés factores relevantes para calificar.</p>
+    return <p className="text-sm text-slate-500">No tienes factores relevantes para calificar.</p>
   }
 
   const factor = datos.factores.find((item) => item.idProyectoFactor === idFactor) ?? datos.factores[0]!

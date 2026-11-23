@@ -26,7 +26,7 @@ export function RestablecerPage() {
     setSending(true)
     try {
       await restablecerContrasena(token!, password)
-      navigate('/login', { replace: true, state: { aviso: 'Contraseña actualizada. Iniciá sesión.' } })
+      navigate('/login', { replace: true, state: { aviso: 'Contraseña actualizada. Inicia sesión.' } })
     } catch (failure) {
       setError(errorMessage(failure))
       setSending(false)

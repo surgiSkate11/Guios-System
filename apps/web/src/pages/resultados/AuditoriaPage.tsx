@@ -140,7 +140,7 @@ export function AuditoriaSelectorPage() {
   return (
     <SelectorProyecto
       title="Auditoría de jurados"
-      subtitle="Elegí el proyecto a auditar"
+      subtitle="Elige el proyecto a auditar"
       icon={ScanSearch}
       filtro={(proyecto) => proyecto.miRol === 'coordinador'}
       pantalla="auditoria"
