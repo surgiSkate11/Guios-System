@@ -9,6 +9,8 @@ export const API_PREFIX = 'api';
  */
 export function configureApp(app: INestApplication): void {
   app.setGlobalPrefix(API_PREFIX);
+  const webUrl = process.env.WEB_URL;
+  if (webUrl) app.enableCors({ origin: webUrl });
   // Unknown body fields are rejected (e.g. a self-chosen "rol" on sign-up).
   app.useGlobalPipes(
     new ValidationPipe({

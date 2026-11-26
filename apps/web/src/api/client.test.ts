@@ -1,6 +1,10 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { installFakeApi } from '../test/fake-api'
 import { ApiError, apiFetch } from './client'
+
+afterEach(() => {
+  vi.unstubAllEnvs()
+})
 
 describe('apiFetch', () => {
   it('sends JSON with the bearer token and returns the parsed body', async () => {
@@ -39,6 +43,25 @@ describe('apiFetch', () => {
     await expect(apiFetch('/auth/me')).rejects.toMatchObject({
       status: 500,
       message: 'No se pudo completar la solicitud',
+    })
+  })
+
+  it('uses VITE_API_URL as the API origin when configured', async () => {
+    vi.stubEnv('VITE_API_URL', 'https://api.example.com')
+    const { fetchMock } = installFakeApi(() => ({ status: 200, body: { ok: true } }))
+
+    await apiFetch('/auth/me')
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('https://api.example.com/api/auth/me')
+  })
+
+  it('sends a caller-provided request id header', async () => {
+    const { requests } = installFakeApi(() => ({ status: 200, body: {} }))
+    await apiFetch('/proyectos', {
+      headers: { 'X-Request-Id': 'solicitud-1' },
+    })
+    expect(requests[0]?.headers).toMatchObject({
+      'x-request-id': 'solicitud-1',
     })
   })
 })

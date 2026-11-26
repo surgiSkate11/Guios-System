@@ -13,10 +13,16 @@ export interface ApiRequest {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   body?: unknown
   token?: string | null
+  headers?: Record<string, string>
 }
 
 const GENERIC_ERROR = 'No se pudo completar la solicitud'
 const NETWORK_ERROR = 'No se pudo conectar con el servidor'
+
+function apiUrl(path: string): string {
+  const origin = (import.meta.env.VITE_API_URL ?? '').replace(/\/+$/, '')
+  return `${origin}/api${path}`
+}
 
 function messageOf(body: unknown): string {
   const message = (body as { message?: unknown } | null)?.message
@@ -25,18 +31,21 @@ function messageOf(body: unknown): string {
 }
 
 /**
- * Calls the REST API under /api (Vite proxies it to the server in development).
+ * Calls the REST API through the development proxy or the configured production origin.
  * Resolves with the JSON body or rejects with an ApiError.
  */
 export async function apiFetch<T>(path: string, request: ApiRequest = {}): Promise<T> {
   const { method = 'GET', body, token } = request
-  const headers: Record<string, string> = { Accept: 'application/json' }
+  const headers: Record<string, string> = {
+    ...request.headers,
+    Accept: 'application/json',
+  }
   if (body !== undefined) headers['Content-Type'] = 'application/json'
   if (token) headers.Authorization = `Bearer ${token}`
 
   let response: Response
   try {
-    response = await fetch(`/api${path}`, {
+    response = await fetch(apiUrl(path), {
       method,
       headers,
       body: body === undefined ? undefined : JSON.stringify(body),
@@ -62,7 +71,7 @@ export async function apiFetch<T>(path: string, request: ApiRequest = {}): Promi
 export async function apiBlob(path: string, token: string | null): Promise<Blob> {
   let response: Response
   try {
-    response = await fetch(`/api${path}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+    response = await fetch(apiUrl(path), { headers: token ? { Authorization: `Bearer ${token}` } : {} })
   } catch {
     throw new ApiError(0, NETWORK_ERROR)
   }

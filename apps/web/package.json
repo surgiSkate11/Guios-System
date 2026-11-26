@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
+    "start:prod": "serve -s dist -l tcp://0.0.0.0:$PORT",
     "preview": "vite preview",
     "test": "vitest run",
     "typecheck": "tsc -b"
@@ -16,7 +17,8 @@
     "lucide-react": "^1.65.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
-    "react-router": "^7.18.5"
+    "react-router": "^7.18.5",
+    "serve": "^14.2.8"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
