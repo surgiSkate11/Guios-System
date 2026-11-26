@@ -39,7 +39,9 @@ export interface FakeResponse {
   body?: unknown
 }
 
-export type FakeHandler = (request: FakeRequest) => FakeResponse | undefined
+export type FakeHandler = (
+  request: FakeRequest,
+) => FakeResponse | undefined | Promise<FakeResponse | undefined>
 
 /**
  * Replaces global fetch with an in-memory API. Each request goes to the handler;
@@ -57,7 +59,7 @@ export function installFakeApi(handler: FakeHandler) {
       body: typeof init.body === 'string' ? JSON.parse(init.body) : undefined,
     }
     requests.push(request)
-    const response = handler(request) ?? { status: 404, body: { message: 'Not Found' } }
+    const response = (await handler(request)) ?? { status: 404, body: { message: 'Not Found' } }
     return new Response(response.body === undefined ? null : JSON.stringify(response.body), {
       status: response.status,
       headers: { 'Content-Type': 'application/json' },

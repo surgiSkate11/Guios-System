@@ -1,18 +1,19 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { importanciaLiteratura } from '@guios/calculo';
 import { createHash } from 'node:crypto';
 import type { Prisma, Sector } from '../generated/prisma/client';
 import { BIBLIOGRAFIA, type Bibliografia } from '../catalogo/bibliografia';
 import { normalizarDoi } from '../catalogo/estimacion';
-import { IA_CLIENTE, type IaCliente } from '../ia/ia-cliente';
+import { IA_CLIENTE, type IaCliente, type ResultadoIa } from '../ia/ia-cliente';
 import { PrismaService } from '../prisma/prisma.service';
 
 /** Bump when the prompt changes so cached answers of the old prompt are not reused. */
-const VERSION_PROMPT = 'is-contexto-v3';
+const VERSION_PROMPT = 'is-contexto-v4';
 /** Upper bound for the whole AI call, fallback models included. */
 const ESPERA_MS = 120_000;
 const PERIODO_REVISION = 2020;
+const RETENCION_PROGRESO_MS = 10 * 60 * 1000;
 
 const INSTRUCCIONES =
   'Eres experto en adopción de software. Recibes en JSON el contexto de una evaluación (tipo de ' +
@@ -20,10 +21,9 @@ const INSTRUCCIONES =
   'de la tesis (isTesis, escala 1 Irrelevante, 2 Opcional, 3 Importante, 4 Fundamental, basada en ' +
   'literatura 2008-2019) y la evidencia disponible: tesis2008_2019 y revision2020_2025, con TC = ' +
   'citas, NS = subfactores e IL = importancia de la literatura de 1 a 4, y articulosRecientes: ' +
-  'artículos 2020-2025 encontrados en internet (OpenAlex) sobre ese factor. Usa esos artículos y, ' +
-  'si puedes, busca en internet ' +
-  'evidencia reciente (2020-2025) sobre la relevancia de cada factor para ese tipo de ' +
-  'organización y de software y propone su importancia sugerida para este contexto. Mantén el ' +
+  'artículos 2020-2025 encontrados en OpenAlex sobre ese factor. Usa esos artículos recientes ' +
+  'como evidencia sobre la relevancia de cada factor para ese tipo ' +
+  'de organización y de software y propone su importancia sugerida para este contexto. Mantén el ' +
   'valor de la tesis salvo que la evidencia justifique cambiarlo. Responde SOLO un objeto JSON, ' +
   'sin markdown ni texto adicional: {"factores":[{"id":<id del factor>,"is":<entero de 1 a 4>,' +
   '"justificacion":"<una frase en español de máximo 20 palabras>","confianza":<número entre 0 y 1>}]}, con ' +
@@ -58,6 +58,31 @@ export interface FactorSugerido {
 export interface Sugerencia {
   id: number;
   isPorFactor: Map<number, number>;
+}
+
+export interface ProgresoSugerenciaIs {
+  estado: 'buscando_evidencia' | 'generando' | 'completado';
+  total: number;
+  completados: number;
+  modelo: string | null;
+  origen: 'ia' | 'respaldo' | null;
+  factores: {
+    idFactor: number;
+    nombre: string;
+    isFinal: number | null;
+    estado: 'pendiente' | 'completado' | 'tesis';
+  }[];
+}
+
+interface SolicitudProgreso {
+  idSolicitud: string;
+  idUsuario: number;
+}
+
+interface Seguimiento {
+  idUsuario: number;
+  expira: number;
+  progreso: ProgresoSugerenciaIs;
 }
 
 interface Propuesta {
@@ -130,6 +155,7 @@ export function validarRespuesta(
 export class SugerenciaIsService {
   private readonly logger = new Logger(SugerenciaIsService.name);
   private readonly desvioMax: number;
+  private readonly seguimientos = new Map<string, Seguimiento>();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -141,7 +167,13 @@ export class SugerenciaIsService {
     this.desvioMax = Number.isInteger(valor) && valor >= 0 ? valor : 1;
   }
 
-  async sugerir(ctx: ContextoSugerencia): Promise<Sugerencia> {
+  async sugerir(
+    ctx: ContextoSugerencia,
+    solicitud?: SolicitudProgreso,
+  ): Promise<Sugerencia> {
+    const seguimiento = solicitud
+      ? this.iniciarSeguimiento(ctx, solicitud)
+      : null;
     const tipoSoftware = ctx.tipoSoftware?.trim() || 'no especificado';
     const ids = ctx.factores.map((f) => f.id);
     const clave = createHash('sha256')
@@ -162,15 +194,25 @@ export class SugerenciaIsService {
       where: { clave, origen: 'ia' },
       orderBy: { id: 'desc' },
     });
-    if (enCache) return this.aSugerencia(enCache.id, enCache.resultado);
+    if (enCache) {
+      const resultado = this.aSugerencia(enCache.id, enCache.resultado);
+      this.finalizarSeguimiento(
+        seguimiento,
+        enCache.resultado as unknown as FactorSugerido[],
+        enCache.modelo,
+        'ia',
+      );
+      return resultado;
+    }
 
+    this.actualizarEstado(seguimiento, 'buscando_evidencia');
     const factoresEvidencia = await this.evidencia(ctx);
     const contexto = {
       tipoOrganizacion: ctx.sector,
       tipoSoftware,
       factores: ids,
-      /** Whether the answer used Google web search; recorded for the audit. */
-      busquedaWeb: true,
+      /** Google Search grounding is disabled; only supplied OpenAlex evidence is used. */
+      busquedaWeb: false,
       /** Recent (2020-2025) articles found in OpenAlex and given to the AI. */
       articulosWeb: 0,
     };
@@ -189,6 +231,7 @@ export class SugerenciaIsService {
     });
     const base = { clave, contexto, idCatalogoVersion: ctx.idCatalogoVersion };
     const prompt = `${INSTRUCCIONES}\n\n${entrada}`;
+    this.actualizarEstado(seguimiento, 'generando');
 
     if (!this.ia) {
       return this.guardarRespaldo(
@@ -198,33 +241,66 @@ export class SugerenciaIsService {
         null,
         ctx,
         'IA no configurada',
+        seguimiento,
       );
     }
     const ia = this.ia;
-    const consultar = (busquedaWeb: boolean) =>
-      Promise.race([
-        ia.completar(INSTRUCCIONES, entrada, { busquedaWeb }),
-        new Promise<never>((_, rechazar) =>
-          setTimeout(
-            () => rechazar(new Error('tiempo de espera agotado')),
-            ESPERA_MS,
-          ).unref(),
-        ),
-      ]);
-    let respuesta: string;
-    try {
+    let modeloStreaming: string | null = null;
+    let extractor = new ExtractorObjetosJson((objeto) =>
+      this.registrarFactorProvisional(seguimiento, ctx, objeto),
+    );
+    let emitirProgreso = true;
+    const consultar = async (): Promise<ResultadoIa> => {
+      const tarea = ia.completarConProgreso
+        ? ia.completarConProgreso(
+            INSTRUCCIONES,
+            entrada,
+            (fragmento, modelo) => {
+              if (!emitirProgreso) return;
+              if (modeloStreaming !== modelo) {
+                modeloStreaming = modelo;
+                this.actualizarModelo(seguimiento, modelo);
+                extractor = new ExtractorObjetosJson((objeto) =>
+                  this.registrarFactorProvisional(seguimiento, ctx, objeto),
+                );
+                this.reiniciarFactores(seguimiento);
+              }
+              extractor.agregar(fragmento);
+            },
+            { busquedaWeb: false },
+          )
+        : ia.completarConUso
+          ? ia.completarConUso(INSTRUCCIONES, entrada, {
+              busquedaWeb: false,
+            })
+          : ia
+              .completar(INSTRUCCIONES, entrada, {
+                busquedaWeb: false,
+              })
+              .then((texto) => ({
+                texto,
+                modelo: ia.modelo,
+                tokensEntrada: null,
+                tokensSalida: null,
+                intentosFallidos: 0,
+              }));
+      const limite = new Promise<never>((_, rechazar) =>
+        setTimeout(
+          () => rechazar(new Error('tiempo de espera agotado')),
+          ESPERA_MS,
+        ).unref(),
+      );
       try {
-        respuesta = await consultar(true);
+        return await Promise.race([tarea, limite]);
       } catch (error) {
-        // Free plans may reject web search (429): ask again with the evidence we send.
-        if (!(error instanceof Error) || !error.message.includes('429'))
-          throw error;
-        this.logger.warn(
-          'Web search rejected by the AI plan; retrying without it',
-        );
-        contexto.busquedaWeb = false;
-        respuesta = await consultar(false);
+        emitirProgreso = false;
+        throw error;
       }
+    };
+    let resultadoIa: ResultadoIa;
+    try {
+      resultadoIa = await consultar();
+      emitirProgreso = false;
     } catch (error) {
       const motivo = `Error de la IA: ${error instanceof Error ? error.message : String(error)}`;
       this.logger.warn(motivo);
@@ -235,22 +311,24 @@ export class SugerenciaIsService {
         null,
         ctx,
         motivo,
+        seguimiento,
       );
     }
 
     let propuestas: Map<number, Propuesta>;
     try {
-      propuestas = validarRespuesta(respuesta, ids);
+      propuestas = validarRespuesta(resultadoIa.texto, ids);
     } catch (error) {
       const motivo = `Respuesta inválida: ${error instanceof Error ? error.message : String(error)}`;
       this.logger.warn(motivo);
       return this.guardarRespaldo(
         base,
         prompt,
-        this.ia.modelo,
-        respuesta,
+        resultadoIa.modelo,
+        resultadoIa.texto,
         ctx,
         motivo,
+        seguimiento,
       );
     }
 
@@ -274,13 +352,36 @@ export class SugerenciaIsService {
       data: {
         ...base,
         prompt,
-        modelo: this.ia.modelo,
-        respuesta,
+        modelo: resultadoIa.modelo,
+        respuesta: resultadoIa.texto,
         resultado: resultado as unknown as Prisma.InputJsonValue,
         origen: 'ia',
       },
     });
+    this.finalizarSeguimiento(seguimiento, resultado, resultadoIa.modelo, 'ia');
     return this.aSugerencia(fila.id, fila.resultado);
+  }
+
+  obtenerProgreso(
+    idSolicitud: string,
+    idUsuario: number,
+  ): ProgresoSugerenciaIs {
+    const seguimiento = this.seguimientos.get(idSolicitud);
+    if (!seguimiento || seguimiento.expira < Date.now()) {
+      this.seguimientos.delete(idSolicitud);
+      throw new NotFoundException(
+        'No se encontró el progreso de esta solicitud',
+      );
+    }
+    if (seguimiento.idUsuario !== idUsuario) {
+      throw new NotFoundException(
+        'No se encontró el progreso de esta solicitud',
+      );
+    }
+    return {
+      ...seguimiento.progreso,
+      factores: seguimiento.progreso.factores.map((factor) => ({ ...factor })),
+    };
   }
 
   /** Thesis anchors (2008-2019) and 2020-2025 measurements of the version, with their IL. */
@@ -351,6 +452,7 @@ export class SugerenciaIsService {
     respuesta: string | null,
     ctx: ContextoSugerencia,
     motivo: string,
+    seguimiento: Seguimiento | null,
   ): Promise<Sugerencia> {
     const resultado: FactorSugerido[] = ctx.factores.map((f) => ({
       idFactor: f.id,
@@ -374,7 +476,119 @@ export class SugerenciaIsService {
         motivoRespaldo: motivo.slice(0, 500),
       },
     });
+    this.finalizarSeguimiento(seguimiento, resultado, modelo, 'respaldo');
     return this.aSugerencia(fila.id, fila.resultado);
+  }
+
+  private iniciarSeguimiento(
+    ctx: ContextoSugerencia,
+    solicitud: SolicitudProgreso,
+  ): Seguimiento {
+    const ahora = Date.now();
+    for (const [id, seguimiento] of this.seguimientos) {
+      if (seguimiento.expira < ahora) this.seguimientos.delete(id);
+    }
+    const seguimiento: Seguimiento = {
+      idUsuario: solicitud.idUsuario,
+      expira: ahora + RETENCION_PROGRESO_MS,
+      progreso: {
+        estado: 'buscando_evidencia',
+        total: ctx.factores.length,
+        completados: 0,
+        modelo: this.ia?.modelo ?? null,
+        origen: null,
+        factores: ctx.factores.map((factor) => ({
+          idFactor: factor.id,
+          nombre: factor.nombre,
+          isFinal: null,
+          estado: 'pendiente',
+        })),
+      },
+    };
+    this.seguimientos.set(solicitud.idSolicitud, seguimiento);
+    return seguimiento;
+  }
+
+  private actualizarEstado(
+    seguimiento: Seguimiento | null,
+    estado: ProgresoSugerenciaIs['estado'],
+  ): void {
+    if (seguimiento) seguimiento.progreso.estado = estado;
+  }
+
+  private actualizarModelo(
+    seguimiento: Seguimiento | null,
+    modelo: string,
+  ): void {
+    if (seguimiento) seguimiento.progreso.modelo = modelo;
+  }
+
+  private reiniciarFactores(seguimiento: Seguimiento | null): void {
+    if (!seguimiento) return;
+    seguimiento.progreso.completados = 0;
+    seguimiento.progreso.factores = seguimiento.progreso.factores.map(
+      (factor) => ({
+        ...factor,
+        isFinal: null,
+        estado: 'pendiente',
+      }),
+    );
+  }
+
+  private registrarFactorProvisional(
+    seguimiento: Seguimiento | null,
+    ctx: ContextoSugerencia,
+    objeto: unknown,
+  ): void {
+    if (!seguimiento || !objeto || typeof objeto !== 'object') return;
+    const candidato = objeto as Record<string, unknown>;
+    if (
+      typeof candidato.id !== 'number' ||
+      !Number.isInteger(candidato.id) ||
+      typeof candidato.is !== 'number'
+    ) {
+      return;
+    }
+    let propuesta: Map<number, Propuesta>;
+    try {
+      propuesta = validarRespuesta(JSON.stringify({ factores: [candidato] }), [
+        candidato.id,
+      ]);
+    } catch {
+      return;
+    }
+    const factor = ctx.factores.find((item) => item.id === candidato.id);
+    const p = propuesta.get(candidato.id);
+    if (!factor || !p) return;
+    const minimo = Math.max(1, factor.sugeridaDefault - this.desvioMax);
+    const maximo = Math.min(4, factor.sugeridaDefault + this.desvioMax);
+    const isFinal = Math.min(maximo, Math.max(minimo, p.is));
+    const actual = seguimiento.progreso.factores.find(
+      (item) => item.idFactor === candidato.id,
+    );
+    if (!actual || actual.estado === 'completado') return;
+    actual.estado = 'completado';
+    actual.isFinal = isFinal;
+    seguimiento.progreso.completados += 1;
+  }
+
+  private finalizarSeguimiento(
+    seguimiento: Seguimiento | null,
+    factores: FactorSugerido[],
+    modelo: string | null,
+    origen: 'ia' | 'respaldo',
+  ): void {
+    if (!seguimiento) return;
+    seguimiento.progreso.estado = 'completado';
+    seguimiento.progreso.modelo = modelo;
+    seguimiento.progreso.origen = origen;
+    seguimiento.progreso.factores = factores.map((factor) => ({
+      idFactor: factor.idFactor,
+      nombre: factor.nombre,
+      isFinal: factor.isFinal,
+      estado: origen === 'ia' ? 'completado' : 'tesis',
+    }));
+    seguimiento.progreso.completados = factores.length;
   }
 
   private aSugerencia(id: number, resultado: Prisma.JsonValue): Sugerencia {
@@ -383,5 +597,42 @@ export class SugerenciaIsService {
       id,
       isPorFactor: new Map(factores.map((f) => [f.idFactor, f.isFinal])),
     };
+  }
+}
+
+class ExtractorObjetosJson {
+  private texto = '';
+  private procesado = 0;
+  private readonly inicios: number[] = [];
+  private dentroDeCadena = false;
+  private escape = false;
+
+  constructor(private readonly recibir: (objeto: unknown) => void) {}
+
+  agregar(fragmento: string): void {
+    this.texto += fragmento;
+    for (let indice = this.procesado; indice < this.texto.length; indice += 1) {
+      const caracter = this.texto[indice];
+      if (this.dentroDeCadena) {
+        if (this.escape) this.escape = false;
+        else if (caracter === '\\') this.escape = true;
+        else if (caracter === '"') this.dentroDeCadena = false;
+        continue;
+      }
+      if (caracter === '"') {
+        this.dentroDeCadena = true;
+      } else if (caracter === '{') {
+        this.inicios.push(indice);
+      } else if (caracter === '}') {
+        const inicio = this.inicios.pop();
+        if (inicio === undefined) continue;
+        try {
+          this.recibir(JSON.parse(this.texto.slice(inicio, indice + 1)));
+        } catch {
+          // Incomplete or non-JSON objects are ignored; the final response is validated whole.
+        }
+      }
+    }
+    this.procesado = this.texto.length;
   }
 }

@@ -209,6 +209,7 @@ export class ProyectosService {
   async crear(
     usuario: UsuarioPublico,
     dto: CrearProyectoDto,
+    idSolicitud?: string,
   ): Promise<ProyectoResumen> {
     if (usuario.idOrganizacion === null) {
       throw new ConflictException('Un coordinador necesita una organización');
@@ -239,17 +240,20 @@ export class ProyectosService {
     });
     const tipoSoftware = dto.tipoSoftware?.trim() || null;
     // AI suggested importance for this context, or the thesis IS as fallback.
-    const sugerencia = await this.sugerencias.sugerir({
-      idCatalogoVersion: version.id,
-      sector: organizacion.sector,
-      tipoSoftware,
-      factores: factores.map((f) => ({
-        id: f.id,
-        nombre: f.nombre,
-        dimension: f.dimension.nombre,
-        sugeridaDefault: f.sugeridaDefault,
-      })),
-    });
+    const sugerencia = await this.sugerencias.sugerir(
+      {
+        idCatalogoVersion: version.id,
+        sector: organizacion.sector,
+        tipoSoftware,
+        factores: factores.map((f) => ({
+          id: f.id,
+          nombre: f.nombre,
+          dimension: f.dimension.nombre,
+          sugeridaDefault: f.sugeridaDefault,
+        })),
+      },
+      idSolicitud ? { idSolicitud, idUsuario: usuario.id } : undefined,
+    );
 
     const creado = await this.prisma.proyectoEvaluacion.create({
       data: {
@@ -276,6 +280,10 @@ export class ProyectosService {
       },
     });
     return this.resumen(creado.id, usuario);
+  }
+
+  progresoSugerenciaIs(idSolicitud: string, usuario: UsuarioPublico) {
+    return this.sugerencias.obtenerProgreso(idSolicitud, usuario.id);
   }
 
   async actualizar(

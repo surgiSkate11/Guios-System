@@ -71,6 +71,20 @@ export interface NuevoProyecto {
   tipoSoftware?: string
 }
 
+export interface ProgresoSugerenciaIs {
+  estado: 'buscando_evidencia' | 'generando' | 'completado'
+  total: number
+  completados: number
+  modelo: string | null
+  origen: 'ia' | 'respaldo' | null
+  factores: {
+    idFactor: number
+    nombre: string
+    isFinal: number | null
+    estado: 'pendiente' | 'completado' | 'tesis'
+  }[]
+}
+
 /** Part of GET /api/catalogo/vigente (A2) the project form needs. */
 export interface CatalogoDimensiones {
   version: { id: number; numero: number }
@@ -91,8 +105,25 @@ export function obtenerProyecto(id: number): Promise<ProyectoResumen> {
   return apiFetch<ProyectoResumen>(`/proyectos/${id}`, { token: leerToken() })
 }
 
-export function crearProyecto(body: NuevoProyecto): Promise<ProyectoResumen> {
-  return apiFetch<ProyectoResumen>('/proyectos', { method: 'POST', body, token: leerToken() })
+export function crearProyecto(
+  body: NuevoProyecto,
+  idSolicitud?: string,
+): Promise<ProyectoResumen> {
+  return apiFetch<ProyectoResumen>('/proyectos', {
+    method: 'POST',
+    body,
+    token: leerToken(),
+    ...(idSolicitud && { headers: { 'X-Request-Id': idSolicitud } }),
+  })
+}
+
+export function obtenerProgresoSugerenciaIs(
+  idSolicitud: string,
+): Promise<ProgresoSugerenciaIs> {
+  return apiFetch<ProgresoSugerenciaIs>(
+    `/proyectos/sugerencia-is/progreso/${idSolicitud}`,
+    { token: leerToken() },
+  )
 }
 
 export function agregarSoftware(id: number, body: NuevoSoftware): Promise<ProyectoResumen> {

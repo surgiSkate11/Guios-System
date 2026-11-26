@@ -86,7 +86,8 @@ interface ProyectoResumen {
 | Method and path | Who | Body | Response |
 | --- | --- | --- | --- |
 | `GET /api/proyectos?estado=` | any | — | `ProyectoResumen[]` visible to me, newest first |
-| `POST /api/proyectos` | coordinador | `{ nombre, fechaInicio, fechaFin?, metodoConsolidacion, idDimensiones: number[] (≥1), softwares: { nombre, version?, licencia? }[] (≥1), tipoSoftware?: string (≤100) }` | `201 ProyectoResumen` (estado `borrador`, my organization, current catalog version; creates one `proyecto_factor` per active factor of the chosen dimensions with the factor's IS and default scope) |
+| `POST /api/proyectos` | coordinador | `{ nombre, fechaInicio, fechaFin?, metodoConsolidacion, idDimensiones: number[] (≥1), softwares: { nombre, version?, licencia? }[] (≥1), tipoSoftware?: string (≤100) }`; optional UUID v4 `X-Request-Id` header | `201 ProyectoResumen` (estado `borrador`, my organization, current catalog version; creates one `proyecto_factor` per active factor of the chosen dimensions with the factor's IS and default scope) |
+| `GET /api/proyectos/sugerencia-is/progreso/:idSolicitud` | request owner | — | `{ estado, total, completados, modelo, origen, factores: { idFactor, nombre, isFinal, estado }[] }`; current per-factor progress for the project creation identified by `X-Request-Id`; `404` to other users or after expiry |
 | `GET /api/proyectos/:id` | access | — | `ProyectoResumen` |
 | `GET /api/proyectos/:id/sugerencia-is` | access | — | `{ origen, modelo, motivoRespaldo, creadoEn, contexto: { tipoOrganizacion, tipoSoftware, factores }, factores: { idFactor, nombre, isBase, isIa: number | null, isFinal, ajustado, justificacion: string | null, confianza: number | null }[] }`; `404` if the project has none |
 | `PATCH /api/proyectos/:id` | coordinator | `{ nombre?, fechaFin?, metodoConsolidacion? }` | `ProyectoResumen` |

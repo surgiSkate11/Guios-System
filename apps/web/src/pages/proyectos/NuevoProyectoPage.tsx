@@ -1,11 +1,14 @@
 import { ArrowLeft, Check, ClipboardCheck } from 'lucide-react'
-import { useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { Link } from 'react-router'
+import { ApiError } from '../../api/client'
 import {
   crearProyecto,
   obtenerCatalogoVigente,
+  obtenerProgresoSugerenciaIs,
   type Metodo,
   type NuevoSoftware,
+  type ProgresoSugerenciaIs,
   type ProyectoResumen,
 } from '../../api/proyectos'
 import { obtenerParametros } from '../../api/admin'
@@ -103,9 +106,39 @@ export function NuevoProyectoPage() {
   const [creado, setCreado] = useState<ProyectoResumen | null>(null)
   const [aviso, setAviso] = useState<Aviso>(null)
   const [ocupado, setOcupado] = useState(false)
+  const [idSolicitud, setIdSolicitud] = useState<string | null>(null)
+  const [progreso, setProgreso] = useState<ProgresoSugerenciaIs | null>(null)
+  const [errorProgreso, setErrorProgreso] = useState<string | null>(null)
 
   const dimensiones = catalogo.datos?.dimensiones ?? []
   const error = (texto: string) => setAviso({ tipo: 'error', texto })
+
+  useEffect(() => {
+    if (!ocupado || !idSolicitud) return
+    const solicitud = idSolicitud
+    let activo = true
+    let temporizador: ReturnType<typeof setTimeout> | null = null
+    const consultar = async () => {
+      try {
+        const actual = await obtenerProgresoSugerenciaIs(solicitud)
+        if (activo) setProgreso(actual)
+      } catch (fallo) {
+        if (!(fallo instanceof ApiError && fallo.status === 404)) {
+          const avisoError = avisoDeError(fallo)
+          if (activo) {
+            setErrorProgreso(avisoError?.texto ?? 'Error al consultar el progreso')
+          }
+          return
+        }
+      }
+      if (activo) temporizador = setTimeout(consultar, 800)
+    }
+    void consultar()
+    return () => {
+      activo = false
+      if (temporizador) clearTimeout(temporizador)
+    }
+  }, [idSolicitud, ocupado])
 
   function validarDatos(event: FormEvent) {
     event.preventDefault()
@@ -118,7 +151,11 @@ export function NuevoProyectoPage() {
 
   async function crear() {
     if (softwares.length === 0) return error('Agrega al menos un software')
+    const solicitud = crypto.randomUUID()
     setOcupado(true)
+    setIdSolicitud(solicitud)
+    setProgreso(null)
+    setErrorProgreso(null)
     setAviso(null)
     try {
       const proyecto = await crearProyecto({
@@ -132,7 +169,7 @@ export function NuevoProyectoPage() {
           .map((dimension) => dimension.id),
         softwares,
         ...(datos.tipoSoftware.trim() !== '' && { tipoSoftware: datos.tipoSoftware.trim() }),
-      })
+      }, solicitud)
       registrar(proyecto)
       setCreado(proyecto)
       setAviso({ tipo: 'ok', texto: 'Proyecto creado. Invita a los jurados que lo evaluarán.' })
@@ -296,10 +333,50 @@ export function NuevoProyectoPage() {
             </div>
           </div>
           {ocupado && (
-            <p aria-live="polite" className="mt-4 text-sm text-slate-600">
-              Creando el proyecto: la IA está calculando la importancia sugerida de cada factor.
-              Puede tardar hasta dos minutos.
-            </p>
+            <section
+              aria-label="Progreso de importancia sugerida"
+              className="mt-4 rounded-lg bg-slate-50 p-4"
+            >
+              <p aria-live="polite" className="text-sm text-slate-700">
+                {progreso?.origen === 'respaldo'
+                  ? 'La IA no está disponible; se conservó el valor de tesis de cada factor.'
+                  : progreso?.estado === 'completado'
+                    ? 'La importancia sugerida de cada factor está lista.'
+                    : progreso?.estado === 'buscando_evidencia'
+                      ? 'Buscando evidencia reciente en OpenAlex…'
+                      : 'La IA está sugiriendo la importancia de cada factor…'}
+                {progreso?.modelo && ` Modelo: ${progreso.modelo}.`}
+              </p>
+              <progress
+                className="mt-3 w-full accent-blue-600"
+                value={progreso?.completados ?? 0}
+                max={Math.max(progreso?.total ?? 0, 1)}
+                aria-label="Factores procesados"
+              />
+              {progreso && (
+                <ul className="mt-3 grid gap-1 text-sm text-slate-700">
+                  {progreso.factores.map((factor) => (
+                    <li key={factor.idFactor}>
+                      {factor.nombre}:{' '}
+                      {factor.estado === 'pendiente'
+                        ? 'pendiente'
+                        : factor.estado === 'tesis'
+                          ? `IS ${factor.isFinal} (valor de tesis)`
+                          : `IS ${factor.isFinal}`}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {errorProgreso && (
+                <p role="alert" className="mt-2 text-sm text-red-700">
+                  No se pudo actualizar el progreso: {errorProgreso}
+                </p>
+              )}
+              <p className="mt-2 text-xs text-slate-500">
+                La sugerencia usa una sola solicitud de IA; si no está disponible, se conserva el
+                valor de tesis.
+              </p>
+            </section>
           )}
         </Tarjeta>
       )}

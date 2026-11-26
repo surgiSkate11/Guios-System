@@ -3,6 +3,7 @@ import {
   type IaCliente,
   type OpcionesIa,
 } from '../src/ia/ia-cliente';
+import { IaPresupuestoService } from '../src/ia/ia-presupuesto.service';
 import {
   BIBLIOGRAFIA,
   type Articulo,
@@ -55,10 +56,10 @@ class FakeIa implements IaCliente {
   isPorNombre: Record<string, unknown> = {};
   crudo: string | null = null;
   fallo: Error | null = null;
-  /** Fails only the calls that ask for web search (e.g. free tier without grounding). */
-  falloConWeb: Error | null = null;
   omitir: string | null = null;
   confianza: unknown = 0.8;
+  pausa: Promise<void> | null = null;
+  alPausar: (() => void) | null = null;
 
   completar(
     instrucciones: string,
@@ -67,8 +68,6 @@ class FakeIa implements IaCliente {
   ): Promise<string> {
     this.llamadas.push({ instrucciones, entrada, opciones });
     if (this.fallo) return Promise.reject(this.fallo);
-    if (this.falloConWeb && opciones?.busquedaWeb)
-      return Promise.reject(this.falloConWeb);
     if (this.crudo !== null) return Promise.resolve(this.crudo);
     const { factores } = JSON.parse(entrada) as { factores: FactorEntrada[] };
     return Promise.resolve(
@@ -83,6 +82,41 @@ class FakeIa implements IaCliente {
           })),
       }),
     );
+  }
+
+  async completarConProgreso(
+    instrucciones: string,
+    entrada: string,
+    onFragmento: (fragmento: string, modelo: string) => void,
+  ) {
+    const texto = await this.completar(instrucciones, entrada, {
+      busquedaWeb: false,
+    });
+    if (this.crudo !== null) {
+      onFragmento(texto, this.modelo);
+      return {
+        texto,
+        modelo: this.modelo,
+        tokensEntrada: 0,
+        tokensSalida: 0,
+        intentosFallidos: 0,
+      };
+    }
+    const datos = JSON.parse(texto) as { factores: Record<string, unknown>[] };
+    for (const [indice, factor] of datos.factores.entries()) {
+      onFragmento(JSON.stringify(factor), this.modelo);
+      if (indice === 0 && this.pausa) {
+        this.alPausar?.();
+        await this.pausa;
+      }
+    }
+    return {
+      texto,
+      modelo: this.modelo,
+      tokensEntrada: 0,
+      tokensSalida: 0,
+      intentosFallidos: 0,
+    };
   }
 }
 
@@ -108,9 +142,10 @@ describe('AI suggested importance per evaluation context (e2e, test database)', 
       isPorNombre: {},
       crudo: null,
       fallo: null,
-      falloConWeb: null,
       omitir: null,
       confianza: 0.8,
+      pausa: null,
+      alPausar: null,
     });
     cat = await seedCatalogo(t.prisma);
     const org = await crearOrganizacion(t.prisma);
@@ -157,12 +192,12 @@ describe('AI suggested importance per evaluation context (e2e, test database)', 
     );
   }
 
-  it('asks once for every factor, with web search and the context, and applies the AI IS', async () => {
+  it('asks once for every factor without paid grounding and applies the AI IS', async () => {
     ia.isPorNombre = { Usabilidad: 4, Documentación: 1 };
     const p = await crear('ERP');
 
     expect(ia.llamadas).toHaveLength(1);
-    expect(ia.llamadas[0].opciones).toEqual({ busquedaWeb: true });
+    expect(ia.llamadas[0].opciones).toEqual({ busquedaWeb: false });
     const entrada = JSON.parse(ia.llamadas[0].entrada) as {
       contexto: { tipoOrganizacion: string; tipoSoftware: string };
       factores: FactorEntrada[];
@@ -271,29 +306,7 @@ describe('AI suggested importance per evaluation context (e2e, test database)', 
     ia.fallo = null;
     const otro = await crear('ERP');
     expect(otro.sugerenciaIs!.origen).toBe('ia');
-    // A 429 is retried once without web search before falling back, then the new project calls again.
-    expect(ia.llamadas).toHaveLength(3);
-  });
-
-  it('retries without web search when the plan rejects it, and records that', async () => {
-    ia.falloConWeb = new Error('AI service answered 429');
-    ia.isPorNombre = { Usabilidad: 4 };
-    const p = await crear('ERP');
-    expect(ia.llamadas.map((l) => l.opciones)).toEqual([
-      { busquedaWeb: true },
-      { busquedaWeb: false },
-    ]);
-    expect(p.sugerenciaIs).toMatchObject({ origen: 'ia' });
-    expect(await isDelProyecto(p.id)).toEqual({
-      Usabilidad: 4,
-      Documentación: 2,
-    });
-    const res = await t
-      .http()
-      .get(`/api/proyectos/${p.id}/sugerencia-is`)
-      .set(coord.auth)
-      .expect(200);
-    expect(res.body.contexto.busquedaWeb).toBe(false);
+    expect(ia.llamadas).toHaveLength(2);
   });
 
   it('gives the AI recent internet evidence from OpenAlex for every factor', async () => {
@@ -350,5 +363,92 @@ describe('AI suggested importance per evaluation context (e2e, test database)', 
       .get(`/api/proyectos/${p.id}/sugerencia-is`)
       .set(ajeno.auth)
       .expect(404);
+  });
+
+  it('reports per-factor progress only to the user who started the request', async () => {
+    const idSolicitud = '6bd59b0d-54b3-4f34-9bc5-f0c389cb9361';
+    let liberar!: () => void;
+    let anunciar!: () => void;
+    const pausa = new Promise<void>((resolve) => {
+      liberar = resolve;
+    });
+    const primerFactor = new Promise<void>((resolve) => {
+      anunciar = resolve;
+    });
+    ia.pausa = pausa;
+    ia.alPausar = anunciar;
+    const creacion = t
+      .http()
+      .post('/api/proyectos')
+      .set(coord.auth)
+      .set('x-request-id', idSolicitud)
+      .send({
+        nombre: 'Proyecto',
+        fechaInicio: '2026-11-01',
+        metodoConsolidacion: 'mediana',
+        idDimensiones: [cat.tec.id],
+        softwares: [{ nombre: 'Odoo' }],
+      })
+      .then((response) => response);
+    await primerFactor;
+    const progreso = await t
+      .http()
+      .get(`/api/proyectos/sugerencia-is/progreso/${idSolicitud}`)
+      .set(coord.auth)
+      .expect(200);
+    expect(progreso.body).toMatchObject({
+      estado: 'generando',
+      total: 2,
+      completados: 1,
+      factores: [
+        { nombre: 'Usabilidad', isFinal: 3, estado: 'completado' },
+        { nombre: 'Documentación', isFinal: null, estado: 'pendiente' },
+      ],
+    });
+    liberar();
+    const res = await creacion;
+    expect(res.status).toBe(201);
+    expect(res.body.sugerenciaIs.modelo).toBe('fake-model');
+
+    const ajeno = await t.usuario('coordinador', {
+      idOrganizacion: (await crearOrganizacion(t.prisma, 'Otra')).id,
+    });
+    await t
+      .http()
+      .get(`/api/proyectos/sugerencia-is/progreso/${idSolicitud}`)
+      .set(ajeno.auth)
+      .expect(404);
+  });
+
+  it('enforces the shared token limit using persisted usage and reservations', async () => {
+    const presupuesto = t.app.get(IaPresupuestoService);
+    const id = await presupuesto.reservar('gemini', 'principal', 899_000);
+    if (id === null) throw new Error('Expected the initial token reservation');
+    await expect(
+      presupuesto.reservar('gemini', 'respaldo', 1_001),
+    ).resolves.toBeNull();
+
+    await presupuesto.registrar(
+      id,
+      {
+        texto: 'ok',
+        modelo: 'gemini-respaldo',
+        tokensEntrada: 300,
+        tokensSalida: 200,
+        intentosFallidos: 1,
+      },
+      0,
+    );
+    await expect(
+      t.prisma.usoTokensIa.findUniqueOrThrow({ where: { id } }),
+    ).resolves.toMatchObject({
+      modelo: 'gemini-respaldo',
+      tokensEntrada: 300,
+      tokensSalida: 200,
+      tokensReservados: 0,
+    });
+    await expect(
+      presupuesto.reservar('gemini', 'principal', 899_500),
+    ).resolves.not.toBeNull();
   });
 });

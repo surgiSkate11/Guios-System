@@ -9,11 +9,32 @@ export interface OpcionesIa {
 
 export interface IaCliente {
   readonly modelo: string;
+  readonly proveedor?: string;
+  readonly intentosMaximos?: number;
   completar(
     instrucciones: string,
     entrada: string,
     opciones?: OpcionesIa,
   ): Promise<string>;
+  completarConUso?(
+    instrucciones: string,
+    entrada: string,
+    opciones?: OpcionesIa,
+  ): Promise<ResultadoIa>;
+  completarConProgreso?(
+    instrucciones: string,
+    entrada: string,
+    onFragmento: (fragmento: string, modelo: string) => void,
+    opciones?: OpcionesIa,
+  ): Promise<ResultadoIa>;
+}
+
+export interface ResultadoIa {
+  texto: string;
+  modelo: string;
+  tokensEntrada: number | null;
+  tokensSalida: number | null;
+  intentosFallidos: number;
 }
 
 /** Injection token; resolves to null when no AI is configured (RNF-06 fallbacks apply). */
@@ -34,12 +55,21 @@ const TIMEOUT_CON_RESPALDO_MS = 20_000;
 
 /** Anthropic Messages API client. The key lives only on the server (RNF-05). */
 export class AnthropicCliente implements IaCliente {
+  readonly proveedor = 'anthropic';
+
   constructor(
     private readonly apiKey: string,
     readonly modelo: string,
   ) {}
 
   async completar(instrucciones: string, entrada: string): Promise<string> {
+    return (await this.completarConUso(instrucciones, entrada)).texto;
+  }
+
+  async completarConUso(
+    instrucciones: string,
+    entrada: string,
+  ): Promise<ResultadoIa> {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       signal: AbortSignal.timeout(TIMEOUT_MS),
@@ -58,16 +88,34 @@ export class AnthropicCliente implements IaCliente {
     if (!res.ok) throw new Error(`AI service answered ${res.status}`);
     const data = (await res.json()) as {
       content?: { type: string; text?: string }[];
+      usage?: {
+        input_tokens?: number;
+        output_tokens?: number;
+        cache_read_input_tokens?: number;
+        cache_creation_input_tokens?: number;
+      };
     };
     const texto = data.content?.find((c) => c.type === 'text')?.text?.trim();
     if (!texto) throw new Error('AI service returned no text');
-    return texto;
+    return {
+      texto,
+      modelo: this.modelo,
+      tokensEntrada: sumaTokens(
+        data.usage?.input_tokens,
+        data.usage?.cache_read_input_tokens,
+        data.usage?.cache_creation_input_tokens,
+      ),
+      tokensSalida: tokenValido(data.usage?.output_tokens),
+      intentosFallidos: 0,
+    };
   }
 }
 
 /** Google Gemini generateContent client. The key goes in a header, never in the URL. */
 export class GeminiCliente implements IaCliente {
   private readonly logger = new Logger(GeminiCliente.name);
+  readonly proveedor = 'gemini';
+  readonly intentosMaximos: number;
 
   /**
    * @param respaldo models tried in order when the previous one is overloaded or unavailable
@@ -77,29 +125,62 @@ export class GeminiCliente implements IaCliente {
     private readonly apiKey: string,
     readonly modelo: string,
     readonly respaldo: string[] = [],
-  ) {}
+  ) {
+    this.intentosMaximos = 1 + respaldo.length;
+  }
 
   async completar(
     instrucciones: string,
     entrada: string,
     opciones?: OpcionesIa,
   ): Promise<string> {
+    return (await this.completarConUso(instrucciones, entrada, opciones)).texto;
+  }
+
+  async completarConUso(
+    instrucciones: string,
+    entrada: string,
+    opciones?: OpcionesIa,
+  ): Promise<ResultadoIa> {
+    return this.consultar((modelo, espera) =>
+      this.generar(modelo, instrucciones, entrada, espera, opciones),
+    );
+  }
+
+  async completarConProgreso(
+    instrucciones: string,
+    entrada: string,
+    onFragmento: (fragmento: string, modelo: string) => void,
+    opciones?: OpcionesIa,
+  ): Promise<ResultadoIa> {
+    return this.consultar((modelo, espera) =>
+      this.generarEnFlujo(
+        modelo,
+        instrucciones,
+        entrada,
+        espera,
+        onFragmento,
+        opciones,
+      ),
+    );
+  }
+
+  private async consultar(
+    generar: (
+      modelo: string,
+      espera: number,
+    ) => Promise<Omit<ResultadoIa, 'intentosFallidos'>>,
+  ): Promise<ResultadoIa> {
     const modelos = [this.modelo, ...this.respaldo];
     let ultimoError: unknown;
     for (const [i, modelo] of modelos.entries()) {
       try {
         const espera =
           i < modelos.length - 1 ? TIMEOUT_CON_RESPALDO_MS : TIMEOUT_MS;
-        const texto = await this.generar(
-          modelo,
-          instrucciones,
-          entrada,
-          espera,
-          opciones,
-        );
+        const resultado = await generar(modelo, espera);
         if (i > 0)
           this.logger.warn(`Gemini answered with fallback model ${modelo}`);
-        return texto;
+        return { ...resultado, modelo, intentosFallidos: i };
       } catch (error) {
         if (!(error instanceof FallaTransitoria)) throw error;
         ultimoError = error.causa;
@@ -114,7 +195,7 @@ export class GeminiCliente implements IaCliente {
     entrada: string,
     espera: number,
     opciones?: OpcionesIa,
-  ) {
+  ): Promise<Omit<ResultadoIa, 'intentosFallidos'>> {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(modelo)}:generateContent`;
     let res: Response;
     try {
@@ -128,6 +209,7 @@ export class GeminiCliente implements IaCliente {
         body: JSON.stringify({
           systemInstruction: { parts: [{ text: instrucciones }] },
           contents: [{ role: 'user', parts: [{ text: entrada }] }],
+          generationConfig: { maxOutputTokens: 2048 },
           ...(opciones?.busquedaWeb ? { tools: [{ googleSearch: {} }] } : {}),
         }),
       });
@@ -144,16 +226,143 @@ export class GeminiCliente implements IaCliente {
       }
       throw error;
     }
-    const data = (await res.json()) as {
-      candidates?: { content?: { parts?: { text?: string }[] } }[];
-    };
+    const data = (await res.json()) as GeminiRespuesta;
     const texto = (data.candidates?.[0]?.content?.parts ?? [])
       .map((p) => p.text ?? '')
       .join('')
       .trim();
     if (!texto) throw new Error('AI service returned no text');
-    return texto;
+    return { texto, modelo, ...usoGemini(data.usageMetadata) };
   }
+
+  private async generarEnFlujo(
+    modelo: string,
+    instrucciones: string,
+    entrada: string,
+    espera: number,
+    onFragmento: (fragmento: string, modelo: string) => void,
+    opciones?: OpcionesIa,
+  ): Promise<Omit<ResultadoIa, 'intentosFallidos'>> {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(modelo)}:streamGenerateContent?alt=sse`;
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        method: 'POST',
+        signal: AbortSignal.timeout(espera),
+        headers: {
+          'content-type': 'application/json',
+          'x-goog-api-key': this.apiKey,
+        },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: instrucciones }] },
+          contents: [{ role: 'user', parts: [{ text: entrada }] }],
+          generationConfig: { maxOutputTokens: 2048 },
+          ...(opciones?.busquedaWeb ? { tools: [{ googleSearch: {} }] } : {}),
+        }),
+      });
+    } catch (error) {
+      throw new FallaTransitoria(error);
+    }
+    if (!res.ok) {
+      const error = new Error(`AI service answered ${res.status}`);
+      if (res.status === 404 || res.status === 429 || res.status >= 500) {
+        throw new FallaTransitoria(error);
+      }
+      throw error;
+    }
+    try {
+      const resultado = await leerFlujoGemini(res, (fragmento) =>
+        onFragmento(fragmento, modelo),
+      );
+      if (!resultado.texto.trim()) {
+        throw new Error('AI service returned no text');
+      }
+      return { ...resultado, modelo };
+    } catch (error) {
+      throw new FallaTransitoria(error);
+    }
+  }
+}
+
+interface GeminiRespuesta {
+  candidates?: { content?: { parts?: { text?: string }[] } }[];
+  usageMetadata?: {
+    promptTokenCount?: number;
+    candidatesTokenCount?: number;
+    thoughtsTokenCount?: number;
+    totalTokenCount?: number;
+  };
+}
+
+function tokenValido(valor: unknown): number | null {
+  return typeof valor === 'number' && Number.isSafeInteger(valor) && valor >= 0
+    ? valor
+    : null;
+}
+
+function sumaTokens(...valores: unknown[]): number | null {
+  const validos = valores.map(tokenValido);
+  if (validos.every((valor) => valor === null)) return null;
+  return validos.reduce<number>((total, valor) => total + (valor ?? 0), 0);
+}
+
+function usoGemini(uso: GeminiRespuesta['usageMetadata']) {
+  const tokensEntrada = tokenValido(uso?.promptTokenCount);
+  const total = tokenValido(uso?.totalTokenCount);
+  const tokensSalida =
+    total !== null
+      ? Math.max(0, total - (tokensEntrada ?? 0))
+      : sumaTokens(uso?.candidatesTokenCount, uso?.thoughtsTokenCount);
+  return { tokensEntrada, tokensSalida };
+}
+
+async function leerFlujoGemini(
+  respuesta: Response,
+  onFragmento: (fragmento: string) => void,
+): Promise<Omit<ResultadoIa, 'modelo' | 'intentosFallidos'>> {
+  const lector = respuesta.body?.getReader();
+  if (!lector) throw new Error('AI service returned no stream');
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let texto = '';
+  let tokensEntrada: number | null = null;
+  let tokensSalida: number | null = null;
+
+  const procesarEvento = (evento: string) => {
+    const lineas = evento
+      .split(/\r?\n/)
+      .filter((linea) => linea.startsWith('data:'))
+      .map((linea) => linea.slice(5).trim());
+    if (lineas.length === 0) return;
+    const datos = lineas.join('\n');
+    if (!datos || datos === '[DONE]') return;
+    const respuesta = JSON.parse(datos) as GeminiRespuesta;
+    const fragmento = (respuesta.candidates?.[0]?.content?.parts ?? [])
+      .map((parte) => parte.text ?? '')
+      .join('');
+    if (fragmento) {
+      texto += fragmento;
+      onFragmento(fragmento);
+    }
+    const uso = usoGemini(respuesta.usageMetadata);
+    tokensEntrada = uso.tokensEntrada ?? tokensEntrada;
+    tokensSalida = uso.tokensSalida ?? tokensSalida;
+  };
+
+  while (true) {
+    const { done, value } = await lector.read();
+    buffer += decoder.decode(value, { stream: !done });
+    buffer = buffer.replace(/\r\n/g, '\n');
+    let separador = buffer.indexOf('\n\n');
+    while (separador >= 0) {
+      procesarEvento(buffer.slice(0, separador));
+      buffer = buffer.slice(separador + 2);
+      separador = buffer.indexOf('\n\n');
+    }
+    if (done) break;
+  }
+  if (buffer.trim()) procesarEvento(buffer);
+  return { texto, tokensEntrada, tokensSalida };
 }
 
 export function crearIaCliente(config: ConfigService): IaCliente | null {

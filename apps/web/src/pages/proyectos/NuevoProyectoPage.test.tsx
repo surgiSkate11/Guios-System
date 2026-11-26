@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
-import { COORDINADOR } from '../../test/fake-api'
+import { COORDINADOR, type FakeHandler } from '../../test/fake-api'
 import { conError, proyectosApi } from '../../test/proyectos-api'
 import { renderRoute } from '../../test/render-route'
 
@@ -116,6 +116,11 @@ describe('NuevoProyectoPage', () => {
     expect(requests.filter((request) => request.method === 'POST')).toEqual([
       expect.objectContaining({
         path: '/api/proyectos',
+        headers: expect.objectContaining({
+          'x-request-id': expect.stringMatching(
+            /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+          ),
+        }),
         body: {
           nombre: 'Sistema de inventario',
           fechaInicio: '2026-10-08',
@@ -160,6 +165,61 @@ describe('NuevoProyectoPage', () => {
     expect(requests.find((r) => r.method === 'POST' && r.path === '/api/proyectos')).toMatchObject({
       body: { tipoSoftware: 'ERP' },
     })
+  })
+
+  it('shows suggested IS values while the project request is still running', async () => {
+    const user = userEvent.setup()
+    const { handler } = proyectosApi([], COORDINADOR)
+    let liberar!: () => void
+    const espera = new Promise<void>((resolve) => {
+      liberar = resolve
+    })
+    const api: FakeHandler = async (request) => {
+      if (request.method === 'GET' && request.path.includes('/sugerencia-is/progreso/')) {
+        return {
+          status: 200,
+          body: {
+            estado: 'generando',
+            total: 2,
+            completados: 1,
+            modelo: 'gemini-3.8-flash',
+            origen: null,
+            factores: [
+              {
+                idFactor: 1,
+                nombre: 'Usabilidad',
+                isFinal: 4,
+                estado: 'completado',
+              },
+              {
+                idFactor: 2,
+                nombre: 'Documentación',
+                isFinal: null,
+                estado: 'pendiente',
+              },
+            ],
+          },
+        }
+      }
+      if (request.method === 'POST' && request.path === '/api/proyectos') {
+        await espera
+      }
+      return handler(request)
+    }
+    abrir(api)
+    await llenarDatos(user)
+    await user.click(screen.getByRole('button', { name: 'Siguiente' }))
+    await agregarSoftware(user, 'Software A')
+    await user.click(screen.getByRole('button', { name: 'Siguiente' }))
+
+    try {
+      expect(await screen.findByText('Usabilidad: IS 4')).toBeInTheDocument()
+      expect(screen.getByText('Documentación: pendiente')).toBeInTheDocument()
+      expect(screen.getByText(/Modelo: gemini-3.8-flash/)).toBeInTheDocument()
+    } finally {
+      liberar()
+    }
+    expect(await screen.findByRole('heading', { level: 2, name: 'Jurados' })).toBeInTheDocument()
   })
 
   it('shows every server validation message and stays on the softwares step', async () => {

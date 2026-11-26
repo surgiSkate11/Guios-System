@@ -1,8 +1,10 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
   Get,
+  Headers,
   HttpCode,
   HttpStatus,
   Param,
@@ -47,8 +49,25 @@ export class ProyectosController {
   crear(
     @CurrentUser() usuario: UsuarioPublico,
     @Body() body: CrearProyectoDto,
+    @Headers('x-request-id') idSolicitud?: string,
   ) {
-    return this.proyectos.crear(usuario, body);
+    if (
+      idSolicitud !== undefined &&
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+        idSolicitud,
+      )
+    ) {
+      throw new BadRequestException('x-request-id debe ser un UUID v4');
+    }
+    return this.proyectos.crear(usuario, body, idSolicitud);
+  }
+
+  @Get('sugerencia-is/progreso/:idSolicitud')
+  progresoSugerenciaIs(
+    @Param('idSolicitud') idSolicitud: string,
+    @CurrentUser() usuario: UsuarioPublico,
+  ) {
+    return this.proyectos.progresoSugerenciaIs(idSolicitud, usuario);
   }
 
   @Get(':id/sugerencia-is')

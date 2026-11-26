@@ -16,7 +16,7 @@ export function renderRoute(path: string, options: RenderRouteOptions = {}) {
   const { usuario, api } = options
   if (usuario) localStorage.setItem(TOKEN_KEY, TEST_TOKEN)
   const session = usuario ? sessionHandler(usuario) : undefined
-  const fakeApi = installFakeApi((request) => api?.(request) ?? session?.(request))
+  const fakeApi = installFakeApi(async (request) => (await api?.(request)) ?? session?.(request))
   const router = createMemoryRouter(routes, { initialEntries: [path] })
   const result = render(<RouterProvider router={router} />)
   return { ...result, router, ...fakeApi }

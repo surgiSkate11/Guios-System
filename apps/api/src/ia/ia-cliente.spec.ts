@@ -85,6 +85,7 @@ describe('GeminiCliente', () => {
     expect(JSON.parse(init.body as string)).toEqual({
       systemInstruction: { parts: [{ text: 'instrucciones' }] },
       contents: [{ role: 'user', parts: [{ text: 'entrada' }] }],
+      generationConfig: { maxOutputTokens: 2048 },
     });
   });
 
@@ -101,6 +102,58 @@ describe('GeminiCliente', () => {
     );
     expect(cuerpos[0].tools).toEqual([{ googleSearch: {} }]);
     expect(cuerpos[1].tools).toBeUndefined();
+  });
+
+  it('streams generated text and reports the model and token usage', async () => {
+    const eventos = [
+      {
+        candidates: [{ content: { parts: [{ text: '{"factores":[' }] } }],
+      },
+      {
+        candidates: [{ content: { parts: [{ text: '{"id":1,"is":3}]}' }] } }],
+        usageMetadata: { promptTokenCount: 17, candidatesTokenCount: 9 },
+      },
+    ];
+    const contenido = eventos
+      .map((evento) => `data: ${JSON.stringify(evento)}\r\n\r\n`)
+      .join('');
+    const encoder = new TextEncoder();
+    const bytes = encoder.encode(contenido);
+    const corte = encoder.encode(
+      contenido.slice(0, contenido.indexOf('\r\n\r\n') + 1),
+    ).length;
+    const fetchMock = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      body: new ReadableStream({
+        start(controlador) {
+          controlador.enqueue(bytes.slice(0, corte));
+          controlador.enqueue(bytes.slice(corte));
+          controlador.close();
+        },
+      }),
+    });
+    global.fetch = fetchMock;
+    const fragmentos: string[] = [];
+    const resultado = await new GeminiCliente('k', 'm').completarConProgreso(
+      'i',
+      'e',
+      (fragmento) => fragmentos.push(fragmento),
+    );
+
+    expect(resultado).toMatchObject({
+      texto: '{"factores":[{"id":1,"is":3}]}',
+      modelo: 'm',
+      tokensEntrada: 17,
+      tokensSalida: 9,
+      intentosFallidos: 0,
+    });
+    expect(fragmentos).toEqual(['{"factores":[', '{"id":1,"is":3}]}']);
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain(':streamGenerateContent?alt=sse');
+    expect(JSON.parse(init.body as string)).toMatchObject({
+      generationConfig: { maxOutputTokens: 2048 },
+    });
   });
 
   it('falls back to the next model when one is overloaded or unavailable', async () => {

@@ -571,3 +571,16 @@ model SugerenciaIs {
   @@index([clave])
   @@map("sugerencia_is")
 }
+
+model UsoTokensIa {
+  id               Int      @id @default(autoincrement())
+  proveedor        String
+  modelo           String
+  tokensEntrada    Int      @default(0) @map("tokens_entrada")
+  tokensSalida     Int      @default(0) @map("tokens_salida")
+  tokensReservados Int      @default(0) @map("tokens_reservados")
+  creadoEn         DateTime @default(now()) @map("creado_en")
+
+  @@index([creadoEn])
+  @@map("uso_tokens_ia")
+}
